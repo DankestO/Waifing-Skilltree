@@ -1,0 +1,192 @@
+<div id="app">
+  <header id="top">
+    <span class="brand">Waifing Skilltree · Editor</span>
+    <button id="btnOpenDir" data-i data-it title="Choose the datapack root folder (the one with pack.mcmeta and data/)">Open datapack folder</button>
+    <button id="btnOpenFiles" data-i data-it title="Open .json trees, .zip datapacks or .jar files (you can pick several)">Open files…</button>
+    <button id="btnSave" class="primary" data-i data-it title="Ctrl+S">Save</button>
+    <button id="btnZip" data-i>⬇ Export .zip</button>
+    <span class="sep"></span>
+    <button id="btnUndo" data-it title="Undo (Ctrl+Z)">↶</button>
+    <button id="btnRedo" data-it title="Redo (Ctrl+Y)">↷</button>
+    <button id="btnValidate" data-i>✔ Validate</button>
+    <button id="btnLibs" data-i>Libraries</button>
+    <button id="btnHelp" data-it title="Help">?</button>
+    <input id="search" type="search" data-ip placeholder="Search nodes… (Ctrl+F)" autocomplete="off"><span id="searchInfo" class="muted small"></span>
+    <select id="lang" class="fixed" aria-label="Language" style="width:auto"><option value="en">English</option><option value="es">Español</option></select>
+    <span id="fileInfo"></span>
+    <input id="fileInput" type="file" accept=".json,.zip,.jar,application/json,application/zip" multiple hidden>
+    <input id="dirInput" type="file" webkitdirectory multiple hidden>
+    <input id="libInput" type="file" accept=".json,application/json" hidden>
+    <input id="texInput" type="file" webkitdirectory multiple hidden>
+  </header>
+  <div id="banner" hidden><span data-i>This browser can't write straight into a folder (Brave, Firefox and Safari block that feature). Everything else works: open folders, .zip and .json files, and Save downloads a .zip you can drop into world/datapacks.</span><button id="bannerClose" data-it title="Dismiss">✕</button></div>
+  <nav id="tabs"></nav>
+  <div id="optbar">
+    <div class="og" title="Grid" data-it>
+      <span class="ol" data-i>Grid</span>
+      <div class="seg" id="gridMode"><button data-snap="0" data-i>Free</button><button data-snap="1" data-i data-it title="Snap to grid">Snap</button></div>
+      <input type="checkbox" id="snap" hidden>
+      <input id="snapSize" type="number" min="1" max="200" value="10" data-it title="Grid size">
+      <div class="swatches" id="gridPresets"></div>
+      <label class="chk" data-it title="Hold Ctrl to flip the mode temporarily (free ↔ snap)."><input type="checkbox" id="showGrid" checked> <span data-i>Show</span></label>
+    </div>
+    <div class="og">
+      <span class="ol" data-i>Mirror</span>
+      <select id="mirror" data-it title="Symmetry about the origin (0,0). Affects adding, moving, deleting, linking and properties.">
+        <option value="none" data-i>None</option>
+        <option value="x" data-i>Horizontal (left/right)</option>
+        <option value="y" data-i>Vertical (up/down)</option>
+        <option value="xy" data-i>Both (×4)</option>
+        <option value="r3" data-i>Radial ×3</option>
+        <option value="r4" data-i>Radial ×4</option>
+        <option value="r5" data-i>Radial ×5</option>
+        <option value="r6" data-i>Radial ×6</option>
+        <option value="r8" data-i>Radial ×8</option>
+        <option value="r10" data-i>Radial ×10</option>
+        <option value="r12" data-i>Radial ×12</option>
+      </select>
+    </div>
+    <div class="og">
+      <span class="ol" data-i>Nodes</span>
+      <label class="chk" data-it title="While on, clicking or dragging can never move nodes (dragging over a node starts a box selection instead). Arrow keys do not move them either."><input type="checkbox" id="lockMove"> <span data-i>Lock positions</span></label>
+    </div>
+    <div class="og" hidden>
+      <span class="ol" data-i>Link type</span>
+      <select id="linkType" data-it title="Type of the new links (right-click with Connect: menu)">
+        <option value="normal" data-i>Normal (both ways)</option>
+        <option value="oneway" data-i>One way (A → B)</option>
+        <option value="choice" data-i>Choice (Node → A or B)</option>
+      </select>
+    </div>
+    <div class="og">
+      <span class="ol" data-i>Colour nodes by</span>
+      <select id="colorMode">
+        <option value="branch" data-i>Branch colour</option>
+        <option value="category" data-i>Attribute category</option>
+        <option value="group" data-i>Limited group</option>
+        <option value="kind" data-i>Node role</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="showRegions" checked> <span data-i>Regions</span></label>
+      <label class="chk" data-it title="Values under nodes (zoom in)"><input type="checkbox" id="showValues" checked> <span data-i>Values</span></label>
+      <label class="chk"><input type="checkbox" id="showMinimap" checked> <span data-i>Minimap</span></label>
+    </div>
+  </div>
+  <main>
+    <aside id="tools">
+      <div class="group">
+        <h3 data-i>Tool</h3>
+        <div class="toolgrid" id="toolBtns">
+          <button data-tool="view"><i>◉</i><span data-i>Preview</span> <kbd>P</kbd></button>
+          <button data-tool="select"><i>⬚</i><span data-i>Select</span> <kbd>V</kbd></button>
+          <button data-tool="add"><i>✚</i><span data-i>Add</span> <kbd>A</kbd></button>
+          <button data-tool="link"><i>⟋</i><span data-i>Connect</span> <kbd>L</kbd></button>
+          <button data-tool="delete"><i>✕</i><span data-i>Delete</span> <kbd>X</kbd></button>
+          <button data-tool="bend"><i>⌒</i><span data-i>Curve links</span> <kbd>B</kbd></button>
+        </div>
+      </div>
+      <div class="group">
+        <h3 data-i>Arrange selection</h3>
+        <div class="toolgrid">
+          <button id="arrCircle" data-it title="Even circle around the selection's centre; links between neighbours follow the circle"><span data-i>◯ Circle</span></button>
+          <button id="arrArc" data-it title="Keeps both ends and bends the rest into an arc"><span data-i>◠ Arc</span></button>
+          <button id="arrLine" data-it title="Straight line, evenly spaced, between the two farthest nodes"><span data-i>— Line</span></button>
+          <button id="arrGrid" data-it title="Grid with the step below"><span data-i>▦ Grid</span></button>
+          <button id="arrTidy" class="wide" data-it title="Select ONE node: everything hanging from it (further from the starts) becomes a tidy tree growing away from its parent"><span data-i>⤷ Tidy branch from node</span></button>
+          <button id="arrSpread" data-it title="Spread the selection apart (nothing selected = whole tree). With Mirror on it keeps the symmetry. Shift = bigger step. Key ]"><span data-i>⤧ Spread</span></button>
+          <button id="arrShrink" data-it title="Pull the selection together (nothing selected = whole tree). With Mirror on it keeps the symmetry. Shift = bigger step. Key ["><span data-i>⤡ Pull together</span></button>
+          <button id="arrRotL" data-it title="Turn the selection 90° counter-clockwise, keeping its shape (nothing selected = whole tree). With Mirror on the copies follow. Key Shift+R"><span data-i>⟲ 90°</span></button>
+          <button id="arrRotR" data-it title="Turn the selection 90° clockwise, keeping its shape (nothing selected = whole tree). With Mirror on the copies follow. Key R"><span data-i>⟳ 90°</span></button>
+          <button id="arrRelax" class="wide" data-it title="Pushes overlapping nodes apart and evens out link lengths (nothing selected = whole tree)"><span data-i>✳ Untangle</span></button>
+          <button id="arrCurveC" data-it title="Links between selected nodes follow a circle around the selection's centre"><span data-i>⤺ Curve (centre)</span></button>
+          <button id="arrCurveO" data-it title="Links between selected nodes follow a circle around (0,0)"><span data-i>⤺ Curve (0,0)</span></button>
+          <button id="arrStraight" data-it title="Straight links again"><span data-i>Straighten</span></button>
+          <button id="arrSnap" data-it title="Snap the selection (or everything) to the grid"><span data-i>Snap selection</span></button>
+        </div>
+        <label data-i>Step (distance between nodes)</label>
+        <input id="arrStep" type="number" min="30" max="200" value="56">
+      </div>
+      <div class="group">
+        <h3 data-i>Actions</h3>
+        <div class="row" style="flex-direction:column;align-items:stretch">
+          <button id="btnFit" data-i>⤢ Fit view</button>
+          <button id="btnColorize" data-i data-it title="Paints every branch with the color of its nearest start node">Color branches from starts</button>
+          <button id="btnUncolor" data-i>Remove colors</button>
+        </div>
+      </div>
+    </aside>
+    <section id="stage">
+      <canvas id="cv"></canvas>
+      <button class="pt pt-left" data-pt="left" data-it title="Show / hide the node panel">◀</button>
+      <button class="pt pt-right" data-pt="right" data-it title="Show / hide the tools panel">▶</button>
+      <button class="pt pt-top" data-pt="top" data-it title="Show / hide the options bar">▲</button>
+      <div id="welcome"></div>
+      <div id="hint"></div>
+      <div id="nodeTip" hidden></div>
+      <canvas id="minimap" width="180" height="180" hidden></canvas>
+      <div id="legend" hidden></div>
+      <div id="addMenu" hidden>
+        <div class="am-title" data-i>Node type</div>
+        <div id="addMenuTypes" class="seg"></div>
+        <div class="am-title" data-i>Size</div>
+        <div id="addMenuSizes"></div>
+        <div class="am-title" data-i>Color</div>
+        <div id="addMenuColors" class="swatches"></div>
+        <div class="row" style="margin-top:4px"><input type="color" id="addMenuPick" class="fixed" data-it title="Custom color"><button id="addMenuCopy" class="chip" type="button" data-it title="New nodes copy everything from the selected node (attributes, icon, colour…)"><span data-i>⧉ Copy selected node</span></button></div>
+        <select id="newShape" hidden><option value="small">small</option><option value="medium">medium</option><option value="large">large</option></select>
+        <select id="newKind" hidden><option value="normal">normal</option><option value="and">and</option></select>
+        <input type="checkbox" id="newStart" hidden><input type="checkbox" id="copySel" hidden><input id="newColor" hidden>
+      </div>
+      <div id="linkMenu" hidden><div class="am-title" data-i>Link type</div><div id="linkMenuItems"></div><label id="lkLevelRow" class="lklevel" hidden><span data-i>Needs the origin at level</span> <input id="lkLevel" type="number" min="0" max="100" value="0"> <span class="muted small" data-i>(0 = just taken)</span></label></div>
+      <div id="dropHint" data-i>Drop .json, .zip or folders here to import</div>
+    </section>
+    <aside id="inspector"></aside>
+  </main>
+  <footer id="status"><span id="stCount"></span><span id="stCursor"></span><span id="stMode"></span><span id="stSave" style="margin-left:auto"></span></footer>
+</div>
+
+<datalist id="attrList"></datalist>
+<datalist id="itemList"></datalist>
+<datalist id="advList"></datalist>
+
+<dialog id="dlgProblems"><h2 data-i>Validation</h2><div id="problemsBody"></div><div class="row" style="margin-top:12px"><button class="fixed" id="closeProblems" data-i>Close</button></div></dialog>
+
+<dialog id="dlgNewTree">
+  <h2 data-i>New tree</h2>
+  <label data-i>Datapack namespace</label><input id="ntNs" value="my_pack">
+  <label data-i>Name (.json file; in-game id = namespace_name)</label><input id="ntName" value="skilltree">
+  <label data-i>Tab title</label><input id="ntTitle" value="New tree">
+  <div class="row" style="margin-top:14px"><button id="ntCancel" data-i>Cancel</button><button id="ntOk" class="primary" data-i>Create</button></div>
+</dialog>
+
+<dialog id="dlgImport">
+  <h2 data-i>Import skill trees</h2>
+  <p class="muted" id="importIntro"></p>
+  <div id="importList"></div>
+  <div class="row" style="margin-top:14px"><button id="impCancel" data-i>Cancel</button><button id="impOk" class="primary" data-i>Import</button></div>
+</dialog>
+
+<dialog id="dlgLibs">
+  <h2 data-i>Libraries</h2>
+  <p class="muted" data-i>Add the attributes and items of other mods here so you can pick them from lists. They are saved in this browser.</p>
+  <div class="two">
+    <div>
+      <h3 data-i>Attributes (JSON)</h3>
+      <textarea id="libAttrs" style="min-height:220px" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:6px"><button id="libAttrsFile" data-i>Import file…</button><button id="libAttrsSample" data-i>Download template</button></div>
+      <div class="muted small" style="margin-top:4px" data-i>Formats: a list of ids, a list of {id,name,amount,operation}, an object {"mod:attribute":"Name"} or a file grouped by mod ({"mod":[{id,description}]}).</div>
+    </div>
+    <div>
+      <h3 data-i>Items (one per line, or JSON)</h3>
+      <textarea id="libItems" style="min-height:220px" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:6px"><button id="libItemsFile" data-i>Import file…</button><button id="btnTextures" data-i>Load textures…</button></div>
+      <div class="muted small" style="margin-top:4px"><span data-i>Load textures: pick a folder with assets/&lt;mod&gt;/textures/item (a resource pack or an unzipped .jar). Icons are drawn in the editor and their ids are added to the item list.</span> <span id="texInfo"></span></div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:14px"><button id="libReset" class="danger fixed" data-i>Reset</button><span></span><button id="libOk" class="primary fixed" data-i>Save and close</button></div>
+</dialog>
+
+<dialog id="dlgHelp">
+  <h2 data-i>Quick help</h2>
+  <ul id="helpBody"></ul>
+  <div class="row" style="margin-top:12px"><button class="fixed" id="closeHelp" data-i>Close</button></div>
+</dialog>
