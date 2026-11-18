@@ -2,8 +2,6 @@
 
 # Waifing Skilltree
 
-*Español: [README.es.md](README.es.md)*
-
 A data-driven skill tree framework for Minecraft Forge 1.20.1, inspired by Passive Skill Trees and Path of Exile.
 
 Waifing Skilltree adds a full-screen skill tree where players spend skill points on nodes that grant attributes, unlock recipes, run commands and more. The mod itself contains no tree: every tree is defined in a datapack, so pack makers and server owners decide exactly what their players can learn.
