@@ -1,5 +1,3 @@
-<img src="src/main/resources/logo.png" alt="Waifing Skilltree logo" width="128">
-
 # Waifing Skilltree
 
 A data-driven skill tree framework for Minecraft Forge 1.20.1, inspired by Passive Skill Trees and Path of Exile.
