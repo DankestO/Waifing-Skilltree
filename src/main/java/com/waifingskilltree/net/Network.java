@@ -11,7 +11,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import java.util.Optional;
 
 public final class Network {
-    private static final String PROTOCOL = "5";   // 1.0.0: choice limits, choice groups, free choices
+    private static final String PROTOCOL = "6";   // 1.2.0: attributes switched off by the player
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(WaifingSkilltreeMod.MODID, "main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
@@ -26,6 +26,7 @@ public final class Network {
         CHANNEL.registerMessage(id++, S2CClickRecipes.class, S2CClickRecipes::encode, S2CClickRecipes::decode, S2CClickRecipes::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(id++, C2SBuyPoint.class, C2SBuyPoint::encode, C2SBuyPoint::decode, C2SBuyPoint::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(id++, C2SRespec.class, C2SRespec::encode, C2SRespec::decode, C2SRespec::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(id++, C2SToggleAttribute.class, C2SToggleAttribute::encode, C2SToggleAttribute::decode, C2SToggleAttribute::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     public static void sendTo(ServerPlayer p, Object msg) {

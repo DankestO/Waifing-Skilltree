@@ -38,7 +38,11 @@ public final class ClientTrees {
     /** Bumped on every data change so the screen can cache node states. */
     public static int version = 0;
 
-    public static void setPlayerData(Map<String, Map<String, Integer>> tk, Set<String> g, boolean self, int pts, Map<String, String> prim, int buy) {
+    /** Attributes the player switched off in the summary panel. */
+    public static Set<String> disabled = new HashSet<>();
+
+    public static void setPlayerData(Map<String, Map<String, Integer>> tk, Set<String> g, boolean self, int pts, Map<String, String> prim, int buy, Set<String> dis) {
+        disabled = dis;
         buyCost = buy;
         selfRefund = self;
         points = pts;

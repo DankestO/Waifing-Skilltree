@@ -9,6 +9,7 @@ import java.util.Set;
  * A tree with {@code exclusive_group} is usable when: the player has not chosen a tree of that group yet,
  * it is the tree the player chose first ("primary"), or a node the player owns lists it in {@code unlock_trees}
  * (by tree id, or "#group" for the whole group).
+ * A tree with {@code requires_unlock} is closed for everyone until an owned node lists it in {@code unlock_trees}.
  */
 public final class TreeLocks {
     private TreeLocks() {}
@@ -28,9 +29,15 @@ public final class TreeLocks {
     }
 
     public static boolean allowed(SkillTree t, Map<String, String> primary, Set<String> unlocked) {
+        if (t.requiresUnlock && !opened(t, unlocked)) return false;   // closed until a node opens it
         if (t.exclusiveGroup.isEmpty()) return true;
         String p = primary.get(t.exclusiveGroup);
         return p == null || p.equals(t.id) || unlocked.contains(t.id) || unlocked.contains("#" + t.exclusiveGroup);
+    }
+
+    /** Does an owned node open this tree (by id, or by "#group" when the tree has an exclusive group)? */
+    public static boolean opened(SkillTree t, Set<String> unlocked) {
+        return unlocked.contains(t.id) || (!t.exclusiveGroup.isEmpty() && unlocked.contains("#" + t.exclusiveGroup));
     }
 
     /** Is the state consistent? Every exclusive tree with nodes must be allowed, and a group with nodes must keep its primary tree used. */
@@ -38,7 +45,9 @@ public final class TreeLocks {
         Set<String> unlocked = unlocked(trees, levels);
         for (var e : levels.entrySet()) {
             SkillTree t = trees.get(e.getKey());
-            if (t == null || t.exclusiveGroup.isEmpty() || !hasAny(e.getValue())) continue;
+            if (t == null || !hasAny(e.getValue())) continue;
+            if (t.requiresUnlock && !opened(t, unlocked)) return false;   // the node that opened it must stay
+            if (t.exclusiveGroup.isEmpty()) continue;
             String p = primary.get(t.exclusiveGroup);
             if (p == null || !hasAny(levels.get(p))) return false;   // the primary tree must not be emptied while others are used
             if (!allowed(t, primary, unlocked)) return false;

@@ -55,7 +55,7 @@ function drawNode(n, z, selected, hovered) {
   }
   if (n.kind === 'and') {
     ctx.fillStyle = '#ffe97a'; ctx.font = `bold ${Math.round(r * 0.7)}px system-ui,sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText('&' + n.require, r * 0.35, r * 0.95);
+    ctx.fillText('&' + (n.require > 0 ? n.require : '∀'), r * 0.35, r * 0.95);
   }
   if (S.searchQ && S.srch.has(n.id)) {   // search hit: bright ring
     ctx.strokeStyle = '#ffe97a'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(0, 0, frameRadius(n) + 7, 0, 7); ctx.stroke();
@@ -216,7 +216,7 @@ function draw() {
       for (let k = 0; k < mm; k++) {
         const [qx, qy] = mirrorApply(k, gx, gy);
         const tpl = $('#copySel').checked && S.sel.size === 1 ? S.cur.nodes.get([...S.sel][0]) : null;
-        const g = tpl ? { shape: tpl.shape, kind: tpl.kind, group: tpl.group } : { shape: $('#newShape').value, kind: $('#newKind').value, group: '' };
+        const g = tpl ? { shape: tpl.shape, kind: tpl.kind, group: tpl.group, form: tpl.form } : { shape: $('#newShape').value, kind: $('#newKind').value, group: '', form: addState.form || 'circle' };
         ctx.save(); ctx.translate(qx, qy); drawFrame(g, RADIUS[g.shape], k === 0 ? (tpl ? nodeColor(tpl) : addColor()) : '#6aa9ff'); ctx.restore();
       }
       ctx.globalAlpha = 1;
@@ -261,6 +261,10 @@ cv.addEventListener('pointerdown', e => {
     }
     if (e.button === 1 && hit) { e.preventDefault(); deleteNodeMirrored(t, hit.id); S.sel.delete(hit.id); commit(); return; }   // middle-click: delete
   }
+  if (S.tool === 'select' && e.button === 2 && hit && !spaceDown) {   // right-click a node: small menu (delete / duplicate)
+    if (!S.sel.has(hit.id)) { S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw(); }
+    openNodeMenu(e.clientX, e.clientY); return;
+  }
   const panNow = e.button === 1 || e.button === 2 || spaceDown;
   if (panNow || (S.tool === 'view' && e.button === 0)) {
     drag = { type: 'pan', sx, sy, vx: S.view.x, vy: S.view.y, click: S.tool === 'view' && e.button === 0 ? (hit ? hit.id : '') : null, shift: e.shiftKey, moved: false };
@@ -291,15 +295,17 @@ cv.addEventListener('pointerdown', e => {
     if (linkFrom && linkFrom !== hit.id && t.nodes.has(linkFrom)) {
       if (toggleLinkMirrored(t, t.nodes.get(linkFrom), hit)) commit();
       // the chain only continues with Shift held: B becomes the next A; otherwise start over
-      linkFrom = e.shiftKey ? hit.id : null; S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw(); return;
+      // modes (right-click menu): static keeps A as the origin; continuous (or Shift) moves on to B
+      const mode = S.linkMode || 'normal';
+      if (mode === 'static' && !e.shiftKey) { S.sel = new Set([linkFrom]); UI.refreshInspector(); requestDraw(); return; }
+      linkFrom = e.shiftKey || mode === 'chain' ? hit.id : null; S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw(); return;
     }
     linkFrom = linkFrom === hit.id ? null : hit.id; S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw();
-  } else if (S.tool === 'delete') {
-    if (hit) { deleteNodeMirrored(t, hit.id); commit(); }
   } else if (S.tool === 'bend') {
     const l = linkAt(t, wx, wy, 12 / S.view.z);
     if (!l) { drag = { type: 'pan', sx, sy, vx: S.view.x, vy: S.view.y }; return; }
     if (e.shiftKey) { l.curve = 0; commit(); return; }   // Shift+click: straight again
+    armMirror([t.nodes.get(l.from), t.nodes.get(l.to)].filter(Boolean));   // mirrored links bend the same way
     drag = { type: 'bend', link: l, moved: false };
   }
 });
@@ -371,10 +377,9 @@ cv.addEventListener('wheel', e => {
 }, { passive: false });
 
 const toolHint = name => ({
-  select: _('Click: select · Drag: move (with mirror) · Shift: extend selection · Drag on empty space: box select'),
+  select: _('Click: select · Drag: move (with mirror) · Shift: extend selection · Drag on empty space: box select · Right-click a node: delete / duplicate · Del: delete'),
   add: _('Click: add node · Right-click node: select · Right-click empty: choose type and color · Middle-click node: delete · Shift+click: add and link to the selected node · Ctrl: flip snapping'),
-  link: _('Click A then B: create/remove a link · Shift+click B: keep chaining from B · Right-click: link type (on a link: edit it) · Esc: cancel'),
-  delete: _('Click a node to delete it (and its mirrored copies when mirror is on)'),
+  link: _('Click A then B: create/remove a link · Shift+click B: keep chaining from B · Right-click: link type and connect mode (normal / continuous / static) · Esc: cancel'),
   bend: _('Curve links: drag a link to bend it · Shift+click: straight again'),
   view: _('Preview: nothing can be moved by accident · Hover a node to see what it gives · Click: inspect · Shift+click: select several · Drag: move the view'),
 }[name]);
@@ -382,7 +387,7 @@ function setTool(name) {
   S.tool = name; linkFrom = null;
   $$('#toolBtns button').forEach(b => b.classList.toggle('on', b.dataset.tool === name));
   hideNodeTip();
-  cv.style.cursor = { bend: 'pointer', view: 'grab', select: 'default', add: 'crosshair', link: 'cell', delete: 'not-allowed' }[name];
+  cv.style.cursor = { bend: 'pointer', view: 'grab', select: 'default', add: 'crosshair', link: 'cell' }[name];
   $('#hint').textContent = toolHint(name);
   if (typeof updateAddBar === 'function') updateAddBar();
   requestDraw();
@@ -395,10 +400,11 @@ window.addEventListener('keydown', e => {
   const ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
   if (ctrl && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (ctrl && k === 'y') { e.preventDefault(); redo(); return; }
+  if (ctrl && k === 'd' && S.cur && S.sel.size) { e.preventDefault(); duplicateSelection(); return; }
   if (ctrl && k === 's') { e.preventDefault(); UI.save(); return; }
   if (ctrl && k === 'a' && S.cur) { e.preventDefault(); S.sel = new Set(S.cur.nodes.keys()); UI.refreshInspector(); requestDraw(); return; }
   if (ctrl) return;
-  const tool = { b: 'bend', p: 'view', v: 'select', a: 'add', l: 'link', x: 'delete' }[k];
+  const tool = { b: 'bend', p: 'view', v: 'select', a: 'add', l: 'link' }[k];
   if (tool) { setTool(tool); return; }
   const t = S.cur;
   if (!t) return;
@@ -473,3 +479,22 @@ function showNodeTip(n, sx, sy) {
   tip.style.left = Math.max(6, x) + 'px'; tip.style.top = y + 'px';
 }
 function hideNodeTip() { const tip = document.getElementById('nodeTip'); if (tip) tip.hidden = true; tipFor = null; }
+
+
+/* ---------- right-click menu of a node (Select/Move tool) ---------- */
+function openNodeMenu(cx, cy) {
+  const m = $('#nodeMenu'); m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.min(cx, innerWidth - w - 8) + 'px'; m.style.top = Math.min(cy, innerHeight - h - 8) + 'px';
+}
+function closeNodeMenu() { $('#nodeMenu').hidden = true; }
+$('#nodeMenu').addEventListener('contextmenu', e => e.preventDefault());
+$('#nmDup').onclick = () => { closeNodeMenu(); duplicateSelection(); };
+$('#nmDel').onclick = () => {
+  closeNodeMenu();
+  const t = S.cur; if (!t || !S.sel.size) return;
+  for (const id of [...S.sel]) if (t.nodes.has(id)) deleteNodeMirrored(t, id);
+  S.sel.clear(); commit();
+};
+window.addEventListener('pointerdown', e => { if (!$('#nodeMenu').hidden && !e.target.closest('#nodeMenu')) closeNodeMenu(); }, true);
+window.addEventListener('keydown', e => { if (e.key === 'Escape') closeNodeMenu(); });

@@ -35,14 +35,14 @@ const gameId = (ns, name) => (ns + '_' + name).toLowerCase().replace(/[^a-z0-9_]
 
 function newNode(id, x, y, props = {}) {
   return Object.assign({
-    id, x, y, title: 'Node', description: [], icon: 'minecraft:paper', shape: 'small', kind: 'normal',
+    id, x, y, title: 'Node', description: [], icon: 'minecraft:paper', shape: 'small', form: 'circle', kind: 'normal',
     require: 2, cost: 1, color: '', requires_advancements: [], attributes: [], commands: [], refund_commands: [],
     start: false, max_level: 1, cost_step: 0, requires_prev_level: 1, requires_items: [], requires_attributes: [], recipes: [], unlock_commands: [],
     click_recipes: [], unlock_trees: [], group: '', group_bonus: {}, requires_nodes: [], requires_count: 0, free_choice_if: [], cap_level: 0, cap_nodes: [], cap_count: 0,
   }, JSON.parse(JSON.stringify(props)), { id, x, y });
 }
 const cloneProps = n => JSON.parse(JSON.stringify({
-  title: n.title, description: n.description, icon: n.icon, shape: n.shape, kind: n.kind, require: n.require,
+  title: n.title, description: n.description, icon: n.icon, shape: n.shape, form: n.form, kind: n.kind, require: n.require,
   cost: n.cost, color: n.color, requires_advancements: n.requires_advancements, attributes: n.attributes,
   commands: n.commands, refund_commands: n.refund_commands, start: n.start, max_level: n.max_level, cost_step: n.cost_step,
   requires_prev_level: n.requires_prev_level, requires_items: n.requires_items, requires_attributes: n.requires_attributes, recipes: n.recipes, unlock_commands: n.unlock_commands,
@@ -52,7 +52,7 @@ const cloneProps = n => JSON.parse(JSON.stringify({
 
 function makeTree(ns, name, title) {
   return { id: gameId(ns, name), ns, name, title: title || name, icon: 'minecraft:nether_star',
-    background: 'minecraft:textures/gui/advancements/backgrounds/stone.png', exclusive_group: '', group_limits: {}, choice_groups: {}, choice_limits: {}, first_start_only: false,
+    background: 'minecraft:textures/gui/advancements/backgrounds/stone.png', exclusive_group: '', group_limits: {}, choice_groups: {}, choice_limits: {}, first_start_only: false, requires_unlock: false,
     nodes: new Map(), links: new Map(), dirty: false, history: [], future: [], handle: null, dirHandle: null };
 }
 
@@ -62,6 +62,7 @@ function treeFromJSON(json, ns, name) {
   t.background = json.background || t.background;
   t.exclusive_group = (json.exclusive_group || '').trim();
   t.first_start_only = !!json.first_start_only;
+  t.requires_unlock = !!json.requires_unlock;
   t.group_limits = Object.assign({}, json.group_limits || {});
   t.choice_groups = Object.assign({}, json.choice_groups || {});
   t.choice_limits = Object.assign({}, json.choice_limits || {});
@@ -75,6 +76,7 @@ function treeFromJSON(json, ns, name) {
     n.description = raw.description || [];
     n.icon = raw.icon || n.icon;
     n.shape = { notable: 'medium', keystone: 'large' }[raw.shape] || raw.shape || (raw.start ? 'large' : 'small');
+    n.form = ['square', 'diamond', 'star'].includes(raw.form) ? raw.form : 'circle';
     n.kind = raw.kind === 'and' ? 'and' : 'normal';   // old "wormhole" nodes are normal: a long link already looks like a portal
     n.require = raw.require ?? 2;
     n.cost = raw.cost ?? 1;
@@ -114,6 +116,7 @@ function treeFromJSON(json, ns, name) {
 function treeToJSON(t) {
   const nodes = [...t.nodes.values()].map(n => {
     const o = { id: n.id, x: round1(n.x), y: round1(n.y), title: n.title, description: n.description, icon: n.icon, shape: n.shape, start: !!n.start };
+    if (n.form && n.form !== 'circle') o.form = n.form;
     if (n.kind !== 'normal') o.kind = n.kind;
     if (n.kind === 'and') o.require = n.require;
     o.cost = n.cost;
@@ -139,7 +142,7 @@ function treeToJSON(t) {
     return o;
   });
   const links = [...t.links.values()].map(l => (l.min_level > 0 ? [l.from, l.to, l.type, l.curve || 0, l.min_level] : l.curve ? [l.from, l.to, l.type, l.curve] : l.type === 'normal' ? [l.from, l.to] : [l.from, l.to, l.type]));
-  return { title: t.title, icon: t.icon, background: t.background, ...(t.exclusive_group ? { exclusive_group: t.exclusive_group } : {}), ...(Object.keys(t.group_limits || {}).length ? { group_limits: t.group_limits } : {}), ...(choiceGroupsOut(t)), ...(t.first_start_only ? { first_start_only: true } : {}), nodes, links };
+  return { title: t.title, icon: t.icon, background: t.background, ...(t.exclusive_group ? { exclusive_group: t.exclusive_group } : {}), ...(Object.keys(t.group_limits || {}).length ? { group_limits: t.group_limits } : {}), ...(choiceGroupsOut(t)), ...(t.requires_unlock ? { requires_unlock: true } : {}), ...(t.first_start_only ? { first_start_only: true } : {}), nodes, links };
 }
 const round1 = v => Math.round(v * 10) / 10;
 const treeJSONText = t => JSON.stringify(treeToJSON(t), null, 2) + '\n';
@@ -206,6 +209,10 @@ function choiceForks(t) {
   for (const l of t.links.values()) if (l.type === 'choice') (m.get(l.from) || m.set(l.from, []).get(l.from)).push(l.to);
   return [...m].map(([id, opts]) => ({ id, title: t.nodes.get(id)?.title || id, options: opts, group: (t.choice_groups || {})[id] || '', limit: (t.choice_limits || {})[id] ?? 1,
     bonus: [...t.nodes.values()].filter(n => (n.group_bonus || {})['choice:' + id]).map(n => [n.title, n.group_bonus['choice:' + id]]) }));
+}
+/** Choices shown in the tree settings list: limit other than 1, a choice group, extra picks, or pinned from the node inspector. */
+function listedForks(t) {
+  return choiceForks(t).filter(f => f.limit !== 1 || f.group || f.bonus.length || (t.cl_pinned && t.cl_pinned.has(f.id)));
 }
 const hasPortal = (t, id) => [...t.links.values()].some(l => (l.from === id || l.to === id) && linkLook(t, l) === 'portal');
 function removeNode(t, id) {

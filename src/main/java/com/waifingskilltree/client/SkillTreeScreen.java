@@ -4,9 +4,11 @@ import com.waifingskilltree.data.AttrMod;
 import com.waifingskilltree.data.SkillNode;
 import com.waifingskilltree.data.SkillRules;
 import com.waifingskilltree.data.SkillTree;
+import com.waifingskilltree.data.TreeLocks;
 import com.waifingskilltree.net.C2SBuyPoint;
 import com.waifingskilltree.net.C2SRefund;
 import com.waifingskilltree.net.C2SRespec;
+import com.waifingskilltree.net.C2SToggleAttribute;
 import com.waifingskilltree.net.C2SUnlock;
 import com.waifingskilltree.net.Network;
 import net.minecraft.ChatFormatting;
@@ -93,15 +95,21 @@ public class SkillTreeScreen extends Screen {
     private int cx() { return (wx0() + wx1()) / 2; }
     private int cy() { return (wy0() + barY()) / 2; }
 
+    /** Trees shown as tabs: a tree closed with requires_unlock stays hidden (no tab at all) until a node opens it. */
     private List<String> tabs() {
-        return new ArrayList<>(ClientTrees.trees.keySet());
+        Set<String> opened = TreeLocks.unlocked(ClientTrees.trees, ClientTrees.taken);
+        List<String> out = new ArrayList<>();
+        for (var e : ClientTrees.trees.entrySet())
+            if (!e.getValue().requiresUnlock || TreeLocks.opened(e.getValue(), opened)) out.add(e.getKey());
+        return out;
     }
 
     @Nullable
     private SkillTree tree() {
         Map<String, SkillTree> v = ClientTrees.trees;
-        if (currentId == null || !v.containsKey(currentId)) {
-            currentId = v.isEmpty() ? null : v.keySet().iterator().next();
+        List<String> shown = tabs();
+        if (currentId == null || !v.containsKey(currentId) || !shown.contains(currentId)) {
+            currentId = shown.isEmpty() ? null : shown.get(0);
             loadView();
         }
         return currentId == null ? null : v.get(currentId);
@@ -429,6 +437,11 @@ public class SkillTreeScreen extends Screen {
         super.render(g, mx, my, pt);
         g.pose().popPose();
         renderTabs(g);
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 450);
+        boolean overAttrs = drawAttrPanel(g, mx, my);
+        g.pose().popPose();
+        if (overAttrs) hovered = null;
 
         if (hovered != null && t != null) g.renderComponentTooltip(font, tooltip(t, hovered), mx, my);
         int tab = tabAt(mx, my);
@@ -481,9 +494,11 @@ public class SkillTreeScreen extends Screen {
             y0 += 20;
         }
 
-        if (!ClientTrees.treeAllowed(t)) {   // exclusive tree locked by the player's choice
+        if (!ClientTrees.treeAllowed(t)) {   // closed tree, or exclusive tree locked by the player's choice
             SkillTree prim = ClientTrees.trees.get(ClientTrees.primary.get(t.exclusiveGroup));
-            String msg = Component.translatable("waifingskilltree.screen.tree_locked", prim == null ? "?" : prim.title).getString();
+            boolean closed = t.requiresUnlock && !TreeLocks.opened(t, TreeLocks.unlocked(ClientTrees.trees, ClientTrees.taken));
+            String msg = closed ? Component.translatable("waifingskilltree.screen.tree_closed").getString()
+                    : Component.translatable("waifingskilltree.screen.tree_locked", prim == null ? "?" : prim.title).getString();
             g.fill(cx() - font.width(msg) / 2 - 8, y0 + 24, cx() + font.width(msg) / 2 + 8, y0 + 40, PANEL);
             g.drawCenteredString(font, msg, cx(), y0 + 28, 0xFFFF6060);
         } else if (!anyTaken(t)) {           // first visit: tell the player where to begin
@@ -560,7 +575,10 @@ public class SkillTreeScreen extends Screen {
             float r = n.radius();
             ox = n.x; oy = n.y;
             float core = SkillNode.SMALL.equals(n.shape) && !keystone(n) ? r - 1.5f : SkillNode.MEDIUM.equals(n.shape) ? r - 3 : r - 4;
-            if (st == State.LOCKED || dim) disc(0, 0, core, argb(dim ? 0xB0 : 0x80, 0x05070C));
+            if (st == State.LOCKED || dim) {
+                if (!SkillNode.CIRCLE.equals(n.form)) shape(n.form, r * 1.22f - (SkillNode.SMALL.equals(n.shape) ? 2.2f : 4.2f), null, 1, argb(dim ? 0xB0 : 0x80, 0x05070C));
+                else disc(0, 0, core, argb(dim ? 0xB0 : 0x80, 0x05070C));
+            }
             if (n.isStart()) {
                 float fr = frameR(n);
                 star(-fr * 0.72f, -fr * 0.72f, Math.max(5, r * 0.38f), 0xFFFFD34A, 0xFF3A2C00);
@@ -598,7 +616,7 @@ public class SkillTreeScreen extends Screen {
                 String lv = cur + "/" + n.maxLevel();
                 small(g, lv, n.x + fr * 0.62f, n.y + fr * 0.62f - 2.4f, 0.6f, cur >= n.maxLevel() ? GOLD_TXT : 0xFF9FF0B8);
             }
-            if (SkillNode.AND.equals(n.kind)) small(g, "&" + n.require, n.x + n.radius() * 0.55f, n.y + n.radius() * 0.35f, 0.75f, 0xFFFFE97A);
+            if (SkillNode.AND.equals(n.kind)) small(g, "&" + (n.require <= 0 ? t.incomingLinks(n.id).size() : n.require), n.x + n.radius() * 0.55f, n.y + n.radius() * 0.35f, 0.75f, 0xFFFFE97A);
             boolean notable = keystone(n) || !SkillNode.SMALL.equals(n.shape);
             if (zoom >= 1.15f && notable && n.title != null && !n.title.isEmpty()) {
                 small(g, n.title, n.x, n.y + fr + 4, 0.55f, state(t, n) == State.LOCKED ? 0xFF8C93A6 : 0xFFE8DDB8);
@@ -787,7 +805,20 @@ public class SkillTreeScreen extends Screen {
 
         split = (ct & 2) != 0 && (ct & 5) != 0 ? stops(small ? WORM_SMALL : WORM_BIG, desat, bright) : null;   // portal + one way / choice
         float strength = st == State.TAKEN ? 0.9f : st == State.AVAILABLE ? 0.55f : 0.38f;
-        if (small) {
+        if (!SkillNode.CIRCLE.equals(n.form)) {      // square, diamond or star outline: same metals as the round frames
+            String f = n.form;
+            float s = r * 1.22f;
+            int[] m = small ? sml : big;
+            int edge = mul(dark, bright);
+            if (key) spikes(12, s * 0.75f, s + 9, 0.13, -Math.PI / 2 + Math.PI / 12, big, s + 8);
+            else if (SkillNode.LARGE.equals(n.shape)) spikes(4, s * 0.7f, s + 9, 0.22, Math.PI / 4, big, s + 8);
+            shape(f, s + 1.8f, null, s, edge);
+            shape(f, s + 0.8f, m, s, 0);
+            float in = small ? 2.2f : 4.2f;
+            shape(f, s - in + 0.8f, null, s, edge);
+            shape(f, s - in, null, s, 0xFF15161A);
+            shape(f, s - in, null, s, withAlpha(dull(col, desat, bright), strength));
+        } else if (small) {
             core(r, col, strength, desat, bright);
             ring(0, 0, r - 1.2f, r + 1.2f, 0, sml, r);
             ring(0, 0, r - 2.2f, r - 1.2f, 0x8C000000, null, r);
@@ -857,7 +888,7 @@ public class SkillTreeScreen extends Screen {
         tip.add(Component.literal(n.title).withStyle(color));
         for (String d : n.description) tip.add(Component.literal(d).withStyle(ChatFormatting.GRAY));
         if (n.isStart()) tip.add(Component.translatable("waifingskilltree.node.start").withStyle(ChatFormatting.GOLD));
-        if (SkillNode.AND.equals(n.kind)) tip.add(Component.translatable("waifingskilltree.node.and", n.require).withStyle(ChatFormatting.YELLOW));
+        if (SkillNode.AND.equals(n.kind)) tip.add((n.require <= 0 ? Component.translatable("waifingskilltree.node.and_all") : Component.translatable("waifingskilltree.node.and", n.require)).withStyle(ChatFormatting.YELLOW));
         if ((conn.getOrDefault(n.id, 0) & 2) != 0) tip.add(Component.translatable("waifingskilltree.node.wormhole").withStyle(ChatFormatting.LIGHT_PURPLE));
         if (!n.attributes.isEmpty()) {
             tip.add(Component.empty());
@@ -1048,6 +1079,148 @@ public class SkillTreeScreen extends Screen {
         return d == Math.floor(d) ? String.valueOf((long) d) : String.format(Locale.ROOT, "%.2f", d);
     }
 
+    // ================================================================ attribute summary (top-right dropdown)
+
+    /** Totals of one attribute over every taken node of every tree: flat part, percent part, and whether some of it is conditional. */
+    private static final class AttrSum {
+        final String id;
+        double flat, pct;
+        boolean conditional;
+        AttrSum(String id) { this.id = id; }
+    }
+
+    private boolean attrOpen = false;
+    private int attrScroll = 0;
+    private static final int ATTR_ROW = 11, ATTR_W = 210;
+
+    private List<AttrSum> attrSums() {
+        Map<String, AttrSum> m = new TreeMap<>();
+        for (var te : ClientTrees.taken.entrySet()) {
+            SkillTree t = ClientTrees.trees.get(te.getKey());
+            if (t == null) continue;
+            for (var ne : te.getValue().entrySet()) {
+                SkillNode n = t.nodes.get(ne.getKey());
+                int lv = ne.getValue();
+                if (n == null || lv <= 0) continue;
+                for (AttrMod a : n.attributes) {
+                    AttrSum sum = m.computeIfAbsent(a.attribute(), AttrSum::new);
+                    if (a.operation() == 0) sum.flat += a.amount() * lv; else sum.pct += a.amount() * lv;
+                    if (a.condition() != null) sum.conditional = true;
+                }
+            }
+        }
+        List<AttrSum> out = new ArrayList<>(m.values());
+        out.removeIf(a -> Math.abs(a.flat) < 1.0E-9 && Math.abs(a.pct) < 1.0E-9);
+        out.sort(Comparator.comparing(a -> attrName(a.id).getString()));
+        return out;
+    }
+
+    private static Component attrName(String id) {
+        var rl = ResourceLocation.tryParse(id);
+        Attribute attr = rl == null ? null : ForgeRegistries.ATTRIBUTES.getValue(rl);
+        return attr == null ? Component.literal(id) : Component.translatable(attr.getDescriptionId());
+    }
+
+    private String attrLabel() {
+        return "\u03A3 " + Component.translatable("waifingskilltree.attrs.title").getString() + (attrOpen ? " \u25B4" : " \u25BE");
+    }
+
+    /** Toggle button of the dropdown: x, y, w, h. */
+    private int[] attrButton() {
+        int w = font.width(attrLabel()) + 12, h = 14;
+        return new int[]{wx1() - w - 4, wy0() + 4, w, h};
+    }
+
+    private int attrVisibleRows(int total) {
+        int[] b = attrButton();
+        int room = (barY() - 8 - (b[1] + b[3] + 2) - 16) / ATTR_ROW;
+        return Math.max(1, Math.min(total, room));
+    }
+
+    /** Draws the button and, when open, the list. Returns true when the mouse is over it (no node tooltip then). */
+    private boolean drawAttrPanel(GuiGraphics g, int mx, int my) {
+        int[] b = attrButton();
+        boolean overBtn = mx >= b[0] && mx < b[0] + b[2] && my >= b[1] && my < b[1] + b[3];
+        g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], overBtn ? 0xF01A2030 : PANEL);
+        g.renderOutline(b[0], b[1], b[2], b[3], PANEL_LINE);
+        g.drawString(font, attrLabel(), b[0] + 6, b[1] + 3, GOLD_TXT, true);
+        if (!attrOpen) return overBtn;
+
+        List<AttrSum> sums = attrSums();
+        int rows = attrVisibleRows(Math.max(1, sums.size()));
+        attrScroll = Math.max(0, Math.min(attrScroll, sums.size() - rows));
+        int px1 = b[0] + b[2], px0 = px1 - ATTR_W, py0 = b[1] + b[3] + 2, py1 = py0 + rows * ATTR_ROW + 16;
+        boolean over = overBtn || mx >= px0 && mx < px1 && my >= py0 && my < py1;
+        g.fill(px0, py0, px1, py1, 0xF00C1018);
+        g.renderOutline(px0, py0, ATTR_W, py1 - py0, PANEL_LINE);
+        if (sums.isEmpty()) {
+            g.drawString(font, Component.translatable("waifingskilltree.attrs.none").getString(), px0 + 6, py0 + 4, 0xFF8C93A6, true);
+        }
+        for (int i = 0; i < rows && attrScroll + i < sums.size(); i++) {
+            AttrSum a = sums.get(attrScroll + i);
+            boolean off = ClientTrees.disabled.contains(a.id);
+            int ry = py0 + 3 + i * ATTR_ROW;
+            boolean hov = mx >= px0 && mx < px1 && my >= ry - 1 && my < ry + ATTR_ROW - 1;
+            if (hov) g.fill(px0 + 1, ry - 1, px1 - 1, ry + ATTR_ROW - 1, 0x40FFFFFF);
+            // check box
+            g.renderOutline(px0 + 4, ry, 8, 8, off ? 0xFF6A6F78 : 0xFF7FE3A1);
+            if (!off) g.fill(px0 + 6, ry + 2, px0 + 10, ry + 6, 0xFF7FE3A1);
+            StringBuilder v = new StringBuilder();
+            if (Math.abs(a.flat) > 1.0E-9) v.append(a.flat >= 0 ? "+" : "").append(trim(a.flat));
+            if (Math.abs(a.pct) > 1.0E-9) { if (v.length() > 0) v.append(' '); v.append(a.pct >= 0 ? "+" : "").append(trim(a.pct * 100)).append('%'); }
+            if (a.conditional) v.append('*');
+            String val = v.toString();
+            int vw = font.width(val);
+            String name = font.plainSubstrByWidth(attrName(a.id).getString(), ATTR_W - 26 - vw);
+            int col = off ? 0xFF6A6F78 : 0xFFE8DDB8;
+            g.drawString(font, name, px0 + 16, ry, col, false);
+            g.drawString(font, val, px1 - 5 - vw, ry, off ? 0xFF6A6F78 : (a.flat < 0 || a.pct < 0 ? 0xFFFF7070 : 0xFF7FE3A1), false);
+            if (off) g.fill(px0 + 16, ry + 4, px0 + 16 + font.width(name), ry + 5, 0xFF6A6F78);
+        }
+        String foot = Component.translatable("waifingskilltree.attrs.hint").getString();
+        g.drawString(font, font.plainSubstrByWidth(foot, ATTR_W - 8), px0 + 4, py1 - 11, 0xFF6A7080, false);
+        if (sums.size() > rows) {   // scroll bar
+            int th = Math.max(6, (py1 - py0 - 16) * rows / sums.size());
+            int ty = py0 + 2 + (py1 - py0 - 18 - th) * attrScroll / Math.max(1, sums.size() - rows);
+            g.fill(px1 - 2, ty, px1 - 1, ty + th, PANEL_LINE);
+        }
+        return over;
+    }
+
+    /** Click on the dropdown: true when consumed. */
+    private boolean attrClick(double mx, double my) {
+        int[] b = attrButton();
+        if (mx >= b[0] && mx < b[0] + b[2] && my >= b[1] && my < b[1] + b[3]) { attrOpen = !attrOpen; return true; }
+        if (!attrOpen) return false;
+        List<AttrSum> sums = attrSums();
+        int rows = attrVisibleRows(Math.max(1, sums.size()));
+        int px1 = b[0] + b[2], px0 = px1 - ATTR_W, py0 = b[1] + b[3] + 2, py1 = py0 + rows * ATTR_ROW + 16;
+        if (mx < px0 || mx >= px1 || my < py0 || my >= py1) return false;
+        int i = (int) Math.floor((my - py0 - 2) / ATTR_ROW);
+        if (i >= 0 && i < rows && attrScroll + i < sums.size()) {
+            String id = sums.get(attrScroll + i).id;
+            boolean off = !ClientTrees.disabled.contains(id);
+            Set<String> nd = new HashSet<>(ClientTrees.disabled);   // instant feedback; the server sync confirms it
+            if (off) nd.add(id); else nd.remove(id);
+            ClientTrees.disabled = nd;
+            Network.sendToServer(new C2SToggleAttribute(id, off));
+        }
+        return true;
+    }
+
+    private boolean attrScrolled(double mx, double my, double delta) {
+        if (!attrOpen) return false;
+        int[] b = attrButton();
+        int px1 = b[0] + b[2], px0 = px1 - ATTR_W;
+        if (mx < px0 || mx >= px1 || my < b[1] || my >= barY()) return false;
+        List<AttrSum> sums = attrSums();
+        int rows = attrVisibleRows(Math.max(1, sums.size()));
+        int py1 = b[1] + b[3] + 2 + rows * ATTR_ROW + 16;
+        if (my >= py1) return false;
+        attrScroll = Math.max(0, Math.min(sums.size() - rows, attrScroll - (int) Math.signum(delta)));
+        return true;
+    }
+
     // ================================================================ tabs (only with more than one tree)
 
     private void renderTabs(GuiGraphics g) {
@@ -1085,6 +1258,7 @@ public class SkillTreeScreen extends Screen {
             setFocused(null);
         }
         if (super.mouseClicked(mx, my, button)) return true;
+        if (button == 0 && attrClick(mx, my)) return true;
         int tab = tabAt(mx, my);
         if (tab >= 0) {
             saveView();
@@ -1126,6 +1300,7 @@ public class SkillTreeScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
+        if (attrScrolled(mx, my, delta)) return true;
         if (!inWindow(mx, my)) return super.mouseScrolled(mx, my, delta);
         float wx = worldX(mx), wy = worldY(my);
         zoom = Math.max(0.25f, Math.min(2.5f, zoom * (float) Math.pow(1.12, delta)));

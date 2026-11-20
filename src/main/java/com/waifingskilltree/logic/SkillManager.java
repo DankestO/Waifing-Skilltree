@@ -385,6 +385,7 @@ public final class SkillManager {
                     AttrMod am = n.attributes.get(i);
                     Attribute attr = am.resolve();
                     if (attr == null) continue;
+                    if (s.disabled.contains(am.attribute())) continue;                     // switched off by the player
                     if (am.condition() != null && !am.condition().test(p)) continue;   // conditional bonus currently off
                     AttributeInstance inst = p.getAttribute(attr);
                     if (inst == null) continue;
@@ -398,6 +399,15 @@ public final class SkillManager {
         }
         if (p.getHealth() > p.getMaxHealth()) p.setHealth(p.getMaxHealth());
         CONDITION_SIGS.put(p, conditionSignature(p, s));
+    }
+
+    /** Switches the tree bonuses of one attribute off or on again (summary panel of the screen). */
+    public static void setAttributeDisabled(ServerPlayer p, String attribute, boolean off) {
+        PlayerSkills s = get(p);
+        if (s == null || attribute == null || attribute.isEmpty()) return;
+        if (off) s.disabled.add(attribute); else s.disabled.remove(attribute);
+        applyAttributes(p);
+        sync(p);
     }
 
     // ------------------------------------------------------------ conditional bonuses
@@ -592,6 +602,6 @@ public final class SkillManager {
                 if (!n.advancements.isEmpty() && !advancementsMet(p, n)) gated.add(t.id + ":" + n.id);
             }
         }
-        Network.sendTo(p, new S2CPlayerData(s.allLevels(), gated, WaifingSkilltreeConfig.ALLOW_SELF_REFUND.get(), available(s), new HashMap<>(s.primary), nextPointCost(s)));
+        Network.sendTo(p, new S2CPlayerData(s.allLevels(), gated, WaifingSkilltreeConfig.ALLOW_SELF_REFUND.get(), available(s), new HashMap<>(s.primary), nextPointCost(s), new HashSet<>(s.disabled)));
     }
 }

@@ -10,6 +10,7 @@
   "waifingskilltree.node.cost": "Cost: %s skill points",
   "waifingskilltree.msg.respec": "Skills reset.",
   "waifingskilltree.msg.not_available": "You can't take this node yet.",
+  "waifingskilltree.node.and_all": "Requires every connected path taken",
   "waifingskilltree.node.and": "Requires %s connected nodes taken",
   "waifingskilltree.node.wormhole": "Portal: leads to a far node",
   "waifingskilltree.node.start": "Starting node",
@@ -74,6 +75,7 @@
   "waifingskilltree.msg.tree_locked": "This tree is locked: you already follow %s.",
   "waifingskilltree.msg.refund_exclusive": "Refund the nodes of the trees this node opened first.",
   "waifingskilltree.screen.tree_locked": "Locked: you already follow %s",
+  "waifingskilltree.screen.tree_closed": "Closed: a node of another tree must open it",
   "waifingskilltree.tab.locked": "Locked (exclusive with your current tree)",
   "waifingskilltree.node.click_recipes": "Unlocks %s right-click recipe(s)",
   "waifingskilltree.node.unlock_tree": "Opens the tree: %s",
@@ -119,5 +121,8 @@
   "waifingskilltree.node.choice_locked": "Locked choice",
   "waifingskilltree.node.free_choice": "Free choice: you have %s",
   "waifingskilltree.node.free_choice_if": "Free choice if you have: %s",
-  "waifingskilltree.node.level_cap": "Levels %s-%s: need %s of: %s"
+  "waifingskilltree.node.level_cap": "Levels %s-%s: need %s of: %s",
+  "waifingskilltree.attrs.title": "Attributes",
+  "waifingskilltree.attrs.none": "No attributes gained yet",
+  "waifingskilltree.attrs.hint": "Click: switch off/on  * = conditional"
 }

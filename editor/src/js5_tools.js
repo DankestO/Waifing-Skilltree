@@ -106,6 +106,13 @@ function connTypeMap(t) {
   }
   return m;
 }
+/** Path of a node outline that is not a circle (size s = half-diagonal of the diamond). Same shapes as the game draws. */
+function nodeOutline(g, form, s) {
+  g.beginPath();
+  if (form === 'square') { const k = s * 0.78; g.rect(-k, -k, 2 * k, 2 * k); }
+  else if (form === 'star') { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? s * 0.52 : s * 1.12; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); }
+  else { g.moveTo(0, -s); g.lineTo(s, 0); g.lineTo(0, s); g.lineTo(-s, 0); g.closePath(); }
+}
 function drawFrame(n, r, col, c, conn) {
   if (conn && conn.size && !isKeystone(n)) {
     const order = ['oneway', 'choice', 'portal'], types = order.filter(k => conn.has(k));
@@ -124,6 +131,18 @@ function drawFrameMetal(n, r, col, c, type) {
   FX = c || ctx;
   const key = isKeystone(n);
   FX.lineJoin = 'round';
+  if (n.form && n.form !== 'circle') {   // square, diamond or star outline: the same metals as the round frames
+    const d = r * 1.22, m = key ? BRONZE : n.shape === 'small' ? SILVER : GOLD, edge = key ? '#3d1608' : '#3a2a0c';
+    const rh = s2 => nodeOutline(FX, n.form, s2);
+    if (key || n.shape === 'large') { FX.fillStyle = metal(d + 8, m); FX.strokeStyle = edge; FX.lineWidth = 1; spikes(key ? 12 : 4, d * 0.75, d + 9, key ? 0.13 : 0.22, key ? -Math.PI / 2 + Math.PI / 12 : Math.PI / 4); }
+    FX.save(); rh(d - 1.5); FX.clip(); drawCore(d * (n.form === 'star' ? 1.1 : 1), col, n.shape === 'small' ? 0.62 : 0.72); FX.restore();
+    FX.lineJoin = 'miter';
+    FX.strokeStyle = metal(d, m); FX.lineWidth = n.shape === 'small' ? 2.6 : 4.2; rh(d - (n.shape === 'small' ? 0.5 : 1.2)); FX.stroke();
+    FX.strokeStyle = edge; FX.lineWidth = 1; rh(d + 1.2); FX.stroke();
+    if (n.shape !== 'small') { rh(d - 3.6); FX.stroke(); }
+    FX.lineJoin = 'round';
+    return;
+  }
   if (n.shape === 'small' && !key) {
     drawCore(r, col, 0.62);
     FX.strokeStyle = metal(r, SILVER); FX.lineWidth = 2.2; FX.beginPath(); FX.arc(0, 0, r, 0, 7); FX.stroke();
@@ -355,6 +374,7 @@ const R1 = v => Math.round(v);
 /** Even circle (orbit) around the centroid, keeping the angular order; links between neighbours follow the circle. */
 function arrangeCircle() {
   const ns = needSel(3); if (!ns) return;
+  armMirror(ns);
   const [cx, cy] = centroid(ns);
   const r = Math.max(step() * ns.length / (2 * Math.PI), ns.reduce((s, n) => s + Math.hypot(n.x - cx, n.y - cy), 0) / ns.length);
   ns.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
@@ -366,6 +386,7 @@ function arrangeCircle() {
 /** Arc: keeps the end nodes, puts the rest evenly on the circle through them (bulging away from the centre of the tree). */
 function arrangeArc() {
   const ns = needSel(3); if (!ns) return;
+  armMirror(ns);
   const [a, b] = farthestPair(ns);
   const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
   const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
@@ -380,6 +401,47 @@ function arrangeArc() {
   curveSelected(cx, cy, true);
   commit();
 }
+/* ---------- shapes: square / diamond (the same square turned 45°) / star ----------
+   Nodes keep their order around the centre and are spread evenly along the outline, starting at
+   the first corner (the top one for the diamond and the star). A diamond of 8 nodes is a node that
+   splits into two paths of 3 that meet again. */
+let lastSquare = null;   // pressing "Square" again on the same selection turns it into a diamond, and back
+function shapeOutline(kind, cx, cy, R) {
+  const pts = [];
+  if (kind === 'star') for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? R * 0.48 : R; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+  else { const a0 = kind === 'diamond' ? -Math.PI / 2 : -Math.PI * 3 / 4; for (let i = 0; i < 4; i++) { const a = a0 + i * Math.PI / 2; pts.push([cx + Math.cos(a) * R, cy + Math.sin(a) * R]); } }
+  return pts;
+}
+function arrangeShape(kind) {
+  const ns = needSel(4); if (!ns) return;
+  armMirror(ns);
+  const [cx, cy] = centroid(ns), k = ns.length;
+  const unit = shapeOutline(kind, 0, 0, 1);
+  let per1 = 0; for (let i = 0; i < unit.length; i++) per1 += Math.hypot(unit[(i + 1) % unit.length][0] - unit[i][0], unit[(i + 1) % unit.length][1] - unit[i][1]);
+  // size: keep the current spread (mean distance to the centre, compared with the same outline at size 1), so pressing again does not shrink it
+  const unitPts = (() => { const segs1 = unit.map((p, i) => [p, unit[(i + 1) % unit.length]]), l1 = segs1.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1])); const out = [];
+    for (let i = 0; i < k; i++) { let d = per1 * i / k, si = 0; while (d > l1[si] && si < l1.length - 1) { d -= l1[si]; si++; } const [a, b] = segs1[si], f = d / l1[si]; out.push(Math.hypot(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)); } return out.reduce((x, y) => x + y, 0) / k; })();
+  const R = Math.max(step() * k / per1, ns.reduce((a, n) => a + Math.hypot(n.x - cx, n.y - cy), 0) / k / unitPts);
+  const pts = shapeOutline(kind, cx, cy, R), segs = pts.map((p, i) => [p, pts[(i + 1) % pts.length]]);
+  const lens = segs.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1])), per = lens.reduce((a, b) => a + b, 0);
+  const start = Math.atan2(pts[0][1] - cy, pts[0][0] - cx), ang = n => { let a = Math.atan2(n.y - cy, n.x - cx) - start; while (a < 0) a += 2 * Math.PI; return a; };
+  ns.sort((a, b) => ang(a) - ang(b));
+  ns.forEach((n, i) => {
+    let d = per * i / k, si = 0;
+    while (d > lens[si] && si < lens.length - 1) { d -= lens[si]; si++; }
+    const [a, b] = segs[si], f = lens[si] ? d / lens[si] : 0;
+    n.x = R1(a[0] + (b[0] - a[0]) * f); n.y = R1(a[1] + (b[1] - a[1]) * f);
+  });
+  straightenSelected(false);
+  commit();
+}
+function squareOrDiamond() {
+  const key = [...S.sel].sort().join(',');
+  const kind = lastSquare && lastSquare.key === key && lastSquare.kind === 'square' ? 'diamond' : 'square';
+  arrangeShape(kind);
+  lastSquare = { key, kind };
+  const b = $('#arrSquare span'); if (b) b.textContent = kind === 'square' ? _('◇ Diamond') : _('□ Square');
+}
 function farthestPair(ns) {
   let best = [ns[0], ns[1]], bd = -1;
   for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++) {
@@ -390,20 +452,30 @@ function farthestPair(ns) {
 /** Straight, evenly spaced line between the two farthest selected nodes. */
 function arrangeLine() {
   const ns = needSel(3); if (!ns) return;
+  armMirror(ns);
   const [a, b] = farthestPair(ns), dx = b.x - a.x, dy = b.y - a.y;
   const order = ns.slice().sort((p, q) => ((p.x - a.x) * dx + (p.y - a.y) * dy) - ((q.x - a.x) * dx + (q.y - a.y) * dy));
   order.forEach((n, i) => { const s = i / (order.length - 1); n.x = R1(a.x + dx * s); n.y = R1(a.y + dy * s); });
   straightenSelected(false);
   commit();
 }
-/** Grid with the spacing of "Step", reading order kept. */
+/** Grid with the spacing of "Step": nodes at a similar height share a row (rows kept), each row evenly spaced and centred. */
 function arrangeGrid() {
   const ns = needSel(2); if (!ns) return;
-  const cols = Math.ceil(Math.sqrt(ns.length)), s = step();
-  const [cx, cy] = centroid(ns);
-  ns.sort((p, q) => (Math.round(p.y / s) - Math.round(q.y / s)) || (p.x - q.x));
-  const rows = Math.ceil(ns.length / cols);
-  ns.forEach((n, i) => { n.x = R1(cx + (i % cols - (cols - 1) / 2) * s); n.y = R1(cy + (Math.floor(i / cols) - (rows - 1) / 2) * s); });
+  armMirror(ns);
+  const s = step(), [cx, cy] = centroid(ns);
+  const sorted = ns.slice().sort((p, q) => p.y - q.y), rows = [];
+  for (const n of sorted) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(n.y - row.y) < s * 0.5) { row.items.push(n); row.y = row.items.reduce((a, m) => a + m.y, 0) / row.items.length; }
+    else rows.push({ y: n.y, items: [n] });
+  }
+  const y0 = cy - (rows.length - 1) / 2 * s;
+  rows.forEach((row, i) => {
+    row.items.sort((p, q) => p.x - q.x);
+    const k = row.items.length, rx = row.items.reduce((a, m) => a + m.x, 0) / k;   // each row stays where it was horizontally
+    row.items.forEach((n, j) => { n.x = R1(rx + (j - (k - 1) / 2) * s); n.y = R1(y0 + i * s); });
+  });
   straightenSelected(false);
   commit();
 }
@@ -421,55 +493,9 @@ function depthFromStarts(t) {
   }
   return d;
 }
-/**
- * Tidy branch: the selected node is the root; everything further from the starts that hangs from it is laid out as a
- * clean tree growing away from its parent (rows of "Step" along the branch, siblings side by side).
- */
-function tidyBranch() {
-  const t = S.cur, ns = selNodes();
-  if (ns.length !== 1) { toast(_('Select exactly one node: the root of the branch to tidy.')); return; }
-  const root = ns[0], depth = depthFromStarts(t), dr = depth.get(root.id) ?? 0;
-  const nbrs = id => [...t.links.values()].filter(l => linkLook(t, l) !== 'portal' && (l.from === id || l.to === id)).map(l => (l.from === id ? l.to : l.from));
-  const parent = nbrs(root.id).filter(id => (depth.get(id) ?? 1e9) < dr).map(id => t.nodes.get(id))[0];
-  let dx, dy;
-  if (parent) { dx = root.x - parent.x; dy = root.y - parent.y; } else { dx = root.x; dy = root.y; }
-  const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
-  const px = -dy, py = dx;
-  const children = new Map(), seen = new Set([root.id]);
-  const q = [root.id];
-  while (q.length) {
-    const id = q.shift(), dd = depth.get(id) ?? 0, kids = [];
-    for (const nb of nbrs(id)) if (!seen.has(nb) && (depth.get(nb) ?? 1e9) > dd) { seen.add(nb); kids.push(nb); q.push(nb); }
-    // keep the current side-by-side order
-    kids.sort((a, b) => { const A = t.nodes.get(a), B = t.nodes.get(b); return (A.x * px + A.y * py) - (B.x * px + B.y * py); });
-    children.set(id, kids);
-  }
-  const s = step();
-  let next = 0;
-  const lat = new Map();
-  const place = id => {
-    const kids = children.get(id);
-    if (!kids.length) { lat.set(id, next++); return; }
-    kids.forEach(place);
-    lat.set(id, (lat.get(kids[0]) + lat.get(kids[kids.length - 1])) / 2);
-  };
-  place(root.id);
-  const off = lat.get(root.id);
-  const lev = new Map([[root.id, 0]]);
-  for (const [id, kids] of children) for (const k of kids) lev.set(k, lev.get(id) + 1);
-  const rx = root.x, ry = root.y;
-  for (const id of seen) {
-    if (id === root.id) continue;
-    const n = t.nodes.get(id), u = lev.get(id) * s, v = (lat.get(id) - off) * s;
-    n.x = R1(rx + dx * u + px * v); n.y = R1(ry + dy * u + py * v);
-  }
-  for (const l of t.links.values()) if (seen.has(l.from) && seen.has(l.to)) l.curve = 0;
-  S.sel = new Set(seen);
-  commit();
-  toast(_('Tidied {n} nodes.', { n: seen.size }));
-}
 /** Untangle: pushes overlapping nodes apart and pulls linked ones to "Step" (only the selection moves; nothing selected = all). */
 function relax() {
+  armMirror(selNodes());
   const t = S.cur; if (!t) return;
   const all = [...t.nodes.values()], mov = S.sel.size ? new Set(S.sel) : new Set(t.nodes.keys());
   const s = step(), minD = s * 0.8, cell = minD;
@@ -497,12 +523,14 @@ function relax() {
   commit();
 }
 function snapSelected() {
+  armMirror(selNodes());
   const ns = selNodes().length ? selNodes() : [...(S.cur?.nodes.values() || [])], g = gridSize();
   for (const n of ns) { n.x = Math.round(n.x / g) * g; n.y = Math.round(n.y / g) * g; }
   commit();
 }
 /** Curves every link between two selected nodes that sit at a similar distance from (cx, cy) along that circle. */
 function curveSelected(cx, cy, quiet) {
+  if (!S.mirrorJob) armMirror(selNodes());
   const t = S.cur; let k = 0;
   for (const l of t.links.values()) {
     if (!S.sel.has(l.from) || !S.sel.has(l.to)) continue;
@@ -514,6 +542,7 @@ function curveSelected(cx, cy, quiet) {
   return k;
 }
 function straightenSelected(doCommit = true) {
+  if (!S.mirrorJob) armMirror(selNodes());
   const t = S.cur; let k = 0;
   for (const l of t.links.values()) if (S.sel.has(l.from) && S.sel.has(l.to) && l.curve) { l.curve = 0; k++; }
   if (doCommit) { commit(); toast(_('Straightened {n} links.', { n: k })); }
@@ -525,7 +554,8 @@ on('arrCircle', arrangeCircle);
 on('arrArc', arrangeArc);
 on('arrLine', arrangeLine);
 on('arrGrid', arrangeGrid);
-on('arrTidy', tidyBranch);
+on('arrSquare', squareOrDiamond);
+on('arrMirrorFix', repairMirror);
 on('arrRelax', relax);
 on('arrSnap', snapSelected);
 on('arrCurveC', () => { const ns = selNodes(); if (ns.length < 2) return toast(_('Select at least {n} nodes first (Select tool, drag a box or Shift+click).', { n: 2 })); const [cx, cy] = centroid(ns); curveSelected(cx, cy); });
@@ -550,7 +580,7 @@ updateLegend();
 const ADD_SIZES = [['small', 'Small'], ['medium', 'Notable'], ['large', 'Large']];
 const ADD_TYPES = [['normal', 'Normal', '#8d93a1'], ['start', 'Start', '#ffd34a'], ['and', 'AND', '#ffe97a']];
 const SIZE_COL = { small: '#8d93a1', medium: '#6aa9ff', large: '#e0604f' };
-const addState = { shape: 'small', type: 'normal', copy: false, color: '' };
+const addState = { shape: 'small', type: 'normal', copy: false, color: '', form: 'circle' };
 try { Object.assign(addState, JSON.parse(localStorage.getItem('wf.add3') || '{}')); } catch (e) { /* storage unavailable */ }
 if (!RADIUS[addState.shape]) addState.shape = 'small';
 if (!ADD_TYPES.some(t => t[0] === addState.type)) addState.type = 'normal';
@@ -562,7 +592,7 @@ function addColor() { return addState.color || (addState.type === 'normal' ? SIZ
 function drawPresetIcon(cnv, shape, type) {
   const d = 2, c = cnv.getContext('2d'); cnv.width = 36 * d; cnv.height = 36 * d;
   const kind = type === 'and' ? type : 'normal';
-  const fake = { shape, kind, group: '' }, r = RADIUS[shape], s = 14 / frameRadius(fake);
+  const fake = { shape, kind, group: '', form: addState.form }, r = RADIUS[shape], s = 14 / (frameRadius(fake) * ({ diamond: 1.25, square: 1.0, star: 1.4 }[addState.form] || 1));
   const col = addState.color || (type === 'normal' ? SIZE_COL[shape] : ADD_TYPES.find(t => t[0] === type)[2]);
   c.setTransform(d * s, 0, 0, d * s, 18 * d, 18 * d);
   drawFrame(fake, r, col, c);
@@ -583,6 +613,7 @@ function syncAddUI() {
   $$('#addMenu canvas[data-icon]').forEach(cv2 => drawPresetIcon(cv2, cv2.dataset.icon, addState.type));
   $$('#addMenuSizes .pchip').forEach(b => b.classList.toggle('on', !addState.copy && b.dataset.size === addState.shape));
   $$('#addMenuTypes button').forEach(b => b.classList.toggle('on', b.dataset.type === addState.type));
+  $$('#addMenuForms button').forEach(b => b.classList.toggle('on', b.dataset.form === addState.form));
   $$('#addMenuColors [data-col]').forEach(b => b.classList.toggle('on', b.dataset.col === addState.color));
   $('#addMenuPick').value = addState.color || '#c9a24a';
   $('#addMenuCopy').classList.toggle('on', addState.copy);
@@ -610,6 +641,7 @@ function closeAddMenu() { $('#addMenu').hidden = true; addMenuAt = null; }
 $('#addMenu').onclick = e => {
   if (e.target.closest('#addMenuCopy')) { setAdd({ copy: !addState.copy }); closeAddMenu(); return; }
   const ty = e.target.closest('#addMenuTypes button'); if (ty) { setAdd({ type: ty.dataset.type, copy: false }); return; }
+  const fo = e.target.closest('#addMenuForms button'); if (fo) { setAdd({ form: fo.dataset.form, copy: false }); return; }
   const co = e.target.closest('#addMenuColors [data-col]'); if (co) { setAdd({ color: co.dataset.col, copy: false }); return; }
   const b = e.target.closest('#addMenuSizes .pchip'); if (!b) return;
   setAdd({ shape: b.dataset.size, copy: false }); closeAddMenu();   // choose only: the next left click places it
@@ -638,27 +670,100 @@ function scaleSelection(f) {
   commit();
   toast(origin ? _('Scaled around (0,0) — symmetry kept.') : _('Scaled around the selection centre.'));
 }
-/** Turns the selection 90° (dir 1 = clockwise, -1 = counter-clockwise) around its centre, keeping its shape; nothing selected = whole tree around (0,0).
- *  With Mirror on, the mirrored copies follow so the symmetry is kept. Curved links keep their bend (it is relative to the link). */
-function rotateSelection(dir) {
-  const t = S.cur; if (!t) return;
+/** Turns the selection by `deg` degrees (positive = clockwise on screen) around its centre, keeping its shape;
+ *  nothing selected = whole tree around (0,0). With Mirror on, the mirrored copies follow so the symmetry is kept.
+ *  Curved links keep their bend (it is relative to the link). */
+const R10 = v => Math.round(v * 10) / 10;
+function rotateBy(deg, quiet) {
+  const t = S.cur; if (!t || !deg) return;
   let ns = selNodes(); const whole = !ns.length;
   if (whole) ns = [...t.nodes.values()];
   if (ns.length < 2) return toast(_('Select at least {n} nodes first (Select tool, drag a box or Shift+click).', { n: 2 }));
   let [cx, cy] = whole ? [0, 0] : centroid(ns);
-  if (!whole && snapOn()) { const s = gridSize(); cx = Math.round(cx / s) * s; cy = Math.round(cy / s) * s; }   // stays on the grid
-  const sel = new Set(ns);
-  const mirrors = whole ? ns.map(() => []) : ns.map(n => counterparts(t, n).filter(c => !sel.has(c.node)));
+  if (!whole && snapOn() && Math.abs(deg % 90) < 1e-9) { const s = gridSize(); cx = Math.round(cx / s) * s; cy = Math.round(cy / s) * s; }   // quarter turns stay on the grid
+  const sel = new Set(ns), a = deg * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+  const mirrors = whole ? ns.map(() => []) : ns.map(n => counterparts(t, n).filter(m => !sel.has(m.node)));
   ns.forEach((n, i) => {
     const dx = n.x - cx, dy = n.y - cy;
-    n.x = R1(cx - dir * dy); n.y = R1(cy + dir * dx);
-    mirrors[i].forEach(m => { const [qx, qy] = mirrorApply(m.k, n.x, n.y); m.node.x = R1(qx); m.node.y = R1(qy); });
+    n.x = R10(cx + dx * c - dy * sn); n.y = R10(cy + dx * sn + dy * c);
+    mirrors[i].forEach(m => { const [qx, qy] = mirrorApply(m.k, n.x, n.y); m.node.x = R10(qx); m.node.y = R10(qy); });
   });
   commit();
-  toast(whole ? _('Whole tree turned 90° around (0,0).') : _('Selection turned 90°.'));
+  const shown = +deg.toFixed(2);
+  if (!quiet) toast(whole ? _('Whole tree turned {a}° around (0,0).', { a: shown }) : _('Selection turned {a}°.', { a: shown }));
+}
+const rotAngle = () => Math.abs(parseFloat($('#rotAngle')?.value)) || 90;
+function rotateSelection(dir) { rotateBy(dir * rotAngle()); }
+/** Main direction of a set of points (principal axis), in degrees on screen (0 = pointing right). */
+function mainAxis(ns) {
+  const [cx, cy] = centroid(ns);
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const n of ns) { const dx = n.x - cx, dy = n.y - cy; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; }
+  return 0.5 * Math.atan2(2 * sxy, sxx - syy) * 180 / Math.PI;
+}
+/** Smallest turn that brings an axis (direction without sense) from `from` to `to` degrees: -90..90. */
+const axisTurn = (from, to) => { let d = (to - from) % 180; if (d > 90) d -= 180; if (d <= -90) d += 180; return d; };
+function straighten(toCentre) {
+  const ns = needSel(2); if (!ns) return;
+  const ax = mainAxis(ns);
+  let target;
+  if (toCentre) { const [cx, cy] = centroid(ns); target = Math.atan2(cy, cx) * 180 / Math.PI; }
+  else target = Math.round(ax / 15) * 15;
+  const d = axisTurn(ax, target);
+  if (Math.abs(d) < 0.05) return toast(_('Aligned: turned {a}°.', { a: 0 }));
+  rotateBy(d, true);
+  toast(_('Aligned: turned {a}°.', { a: +d.toFixed(1) }));
+}
+/** Mirror axis: a line through the selection centre or (0,0); angle 0 = vertical, 90 = horizontal (clockwise). */
+function mirrorAxis(ns) {
+  const deg = parseFloat($('#mirAngle')?.value) || 0, a = deg * Math.PI / 180;
+  const [px, py] = $('#mirPivot')?.value === 'origin' ? [0, 0] : centroid(ns);
+  return { px, py, dx: -Math.sin(a), dy: Math.cos(a) };
+}
+function reflectPt(ax, x, y) {
+  const rx = x - ax.px, ry = y - ax.py, k = rx * ax.dx + ry * ax.dy;
+  return [R10(ax.px + 2 * k * ax.dx - rx), R10(ax.py + 2 * k * ax.dy - ry)];
+}
+function flipSelection() {
+  const t = S.cur, ns = needSel(1); if (!ns) return;
+  armMirror(ns);
+  const ax = mirrorAxis(ns), sel = new Set(ns.map(n => n.id));
+  for (const n of ns) [n.x, n.y] = reflectPt(ax, n.x, n.y);
+  for (const l of t.links.values()) if (sel.has(l.from) && sel.has(l.to) && l.curve) l.curve = -l.curve;   // a mirror turns bends the other way
+  commit();
+  toast(_('Flipped {n} nodes.', { n: ns.length }));
+}
+function mirrorCopy() {
+  const t = S.cur, ns = needSel(1); if (!ns) return;
+  const ax = mirrorAxis(ns), map = new Map();
+  for (const n of ns) {
+    const [x, y] = reflectPt(ax, n.x, n.y);
+    const c = newNode(freshId(t), x, y, cloneProps(n));
+    c.start = n.start; t.nodes.set(c.id, c); map.set(n.id, c.id);
+  }
+  const near = (x, y) => { for (const m of t.nodes.values()) if (!map.has(m.id) && ![...map.values()].includes(m.id) && Math.hypot(m.x - x, m.y - y) < 2) return m.id; return null; };
+  for (const l of [...t.links.values()]) {
+    const fa = map.has(l.from), fb = map.has(l.to);
+    if (!fa && !fb) continue;
+    let a = fa ? map.get(l.from) : null, b = fb ? map.get(l.to) : null;
+    if (!a) { const o = t.nodes.get(l.from), r = reflectPt(ax, o.x, o.y); a = near(r[0], r[1]); }   // link to a node outside: copy it if that node's mirror exists
+    if (!b) { const o = t.nodes.get(l.to), r = reflectPt(ax, o.x, o.y); b = near(r[0], r[1]); }
+    if (!a || !b || a === b || t.links.has(linkKey(a, b))) continue;
+    const nl = Object.assign({}, l, { from: a, to: b }); if (nl.curve) nl.curve = -nl.curve;
+    t.links.set(linkKey(a, b), nl);
+  }
+  replicateMirrored(t, [...map.values()]);
+  S.sel = new Set(map.values());
+  commit();
+  toast(_('Mirrored copy: {n} nodes.', { n: map.size }));
 }
 on('arrRotR', () => rotateSelection(1));
 on('arrRotL', () => rotateSelection(-1));
+on('arrStraighten', () => straighten(false));
+on('arrAim', () => straighten(true));
+on('arrFlip', flipSelection);
+on('arrMirCopy', mirrorCopy);
+document.addEventListener('click', e => { const b = e.target.closest('[data-ra]'); if (b) { $('#rotAngle').value = b.dataset.ra; } });
 on('arrSpread', () => scaleSelection(window.event?.shiftKey ? 1.25 : 1.1));
 on('arrShrink', () => scaleSelection(window.event?.shiftKey ? 0.8 : 1 / 1.1));
 window.addEventListener('keydown', e => {
@@ -710,6 +815,8 @@ function syncLinkMenu() {
   $$('#linkMenuItems .lkitem').forEach(b => b.classList.toggle('on', b.dataset.lt === cur));
   $('#linkMenu .am-title').textContent = editLink ? _('This link') : _('Link type');
   $('#lkLevelRow').hidden = !editLink;
+  $('#lkModeBox').hidden = !!editLink;
+  $$('#lkModes button').forEach(b => b.classList.toggle('on', b.dataset.lm === (S.linkMode || 'normal')));
   if (editLink) $('#lkLevel').value = editLink.min_level || 0;
   }
 function openLinkMenu(cx, cy, link) {
@@ -720,6 +827,11 @@ function openLinkMenu(cx, cy, link) {
 }
 function closeLinkMenu() { $('#linkMenu').hidden = true; editLink = null; }
 $('#linkMenu').onclick = e => {
+  const mb = e.target.closest('[data-lm]');
+  if (mb) {   // connect mode: normal / continuous (chain) / static (same origin)
+    S.linkMode = mb.dataset.lm; syncLinkMenu(); if (typeof setHint === 'function') setHint();
+    toast(_('Connect mode: {m}', { m: mb.textContent })); return;
+  }
   const b = e.target.closest('.lkitem'); if (!b) return;
   if (editLink) {   // change the type of this link (and of its mirrored copies)
     for (const l of mirroredLinks(S.cur, editLink)) l.type = b.dataset.lt;

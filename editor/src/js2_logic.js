@@ -11,6 +11,7 @@ function resetHistory(t) { t.history = [snapshot(t)]; t.future = []; }
 function commit() {
   const t = S.cur;
   if (!t) return;
+  if (S.mirrorJob) { const job = S.mirrorJob; S.mirrorJob = null; try { job(); } catch (e) { console.error(e); } }
   t.history.push(snapshot(t));
   if (t.history.length > 250) t.history.shift();
   t.future.length = 0;
@@ -21,7 +22,7 @@ function commit() {
 function restore(t, text) {
   const n = treeFromJSON(JSON.parse(text), t.ns, t.name);
   t.title = n.title; t.icon = n.icon; t.background = n.background; t.nodes = n.nodes; t.links = n.links;
-  t.exclusive_group = n.exclusive_group; t.group_limits = n.group_limits; t.choice_groups = n.choice_groups; t.choice_limits = n.choice_limits; t.first_start_only = n.first_start_only;
+  t.exclusive_group = n.exclusive_group; t.group_limits = n.group_limits; t.choice_groups = n.choice_groups; t.choice_limits = n.choice_limits; t.first_start_only = n.first_start_only; t.requires_unlock = n.requires_unlock;
   for (const id of [...S.sel]) if (!t.nodes.has(id)) S.sel.delete(id);
   t.dirty = true;
   UI.refreshAll();
@@ -65,12 +66,28 @@ function nodeAt(t, x, y, exclude) {
   }
   return null;
 }
+/** Node within `tol` of (x,y). Mirrored copies are looked up with some tolerance, because positions are rounded when saved. */
+const MIRROR_TOL = 3;
+function nodeNear(t, x, y, exclude, tol = MIRROR_TOL) {
+  let best = null, bd = tol * tol;
+  for (const n of t.nodes.values()) {
+    if (n === exclude) continue;
+    const dx = n.x - x, dy = n.y - y, d = dx * dx + dy * dy;
+    if (d <= bd) { bd = d; best = n; }
+  }
+  return best;
+}
+/** Is mirror copy k a reflection (bends of curved links turn the other way)? */
+function mirrorIsReflection(k) {
+  const m = $('#mirror').value;
+  return m === 'x' || m === 'y' || (m === 'xy' && k !== 3);
+}
 /** Symmetric counterparts of n: [{k, node}] (excluding n, no repeats). */
 function counterparts(t, n) {
   const out = [], seen = new Set();
   for (let k = 1; k < mirrorCount(); k++) {
     const [x, y] = mirrorApply(k, n.x, n.y);
-    const m = nodeAt(t, x, y, n);
+    const m = nodeNear(t, x, y, n);
     if (m && !seen.has(m)) { seen.add(m); out.push({ k, node: m }); }
   }
   return out;
@@ -88,7 +105,7 @@ function snapPoint(x, y, flip) {
 
 function createNode(t, x, y, template) {
   // size is purely visual; what a node does (attributes, commands, recipes...) is chosen in the inspector
-  const props = template ? cloneProps(template) : { shape: $('#newShape').value, kind: $('#newKind').value, start: $('#newStart').checked };
+  const props = template ? cloneProps(template) : { shape: $('#newShape').value, kind: $('#newKind').value, start: $('#newStart').checked, form: (typeof addState !== 'undefined' && addState.form) || 'circle' };
   if (!template) {
     props.cost = 1;
     props.title = props.start ? _('Start') : _('Node');
@@ -113,7 +130,7 @@ function addNodeMirrored(t, x, y, chainFrom) {
     const m = createNode(t, qx, qy, template || primary);
     if (chainFrom) {
       const [fx, fy] = mirrorApply(k, chainFrom.x, chainFrom.y);
-      const fm = nodeAt(t, fx, fy, m);
+      const fm = nodeNear(t, fx, fy, m);
       if (fm) t.links.set(linkKey(fm.id, m.id), { from: fm.id, to: m.id, type: 'normal' });
     }
   }
@@ -141,7 +158,7 @@ function toggleLinkMirrored(t, a, b) {
   apply(a, b);
   for (let k = 1; k < mirrorCount(); k++) {
     const [ax, ay] = mirrorApply(k, a.x, a.y), [bx, by] = mirrorApply(k, b.x, b.y);
-    const ma = nodeAt(t, ax, ay), mb = nodeAt(t, bx, by);
+    const ma = nodeNear(t, ax, ay), mb = nodeNear(t, bx, by);
     if (ma && mb && ma !== mb) apply(ma, mb);
   }
   return true;
@@ -205,7 +222,7 @@ function canTake(t, n, lv) {
     const o = l.from === n.id ? l.to : l.from;
     if ((lv.get(o) || 0) >= Math.max(min, l.min_level || 0)) c++;
   }
-  return c >= (n.kind === 'and' ? n.require : 1);
+  return c >= (n.kind === 'and' ? (n.require > 0 ? n.require : Math.max(1, incoming(t, n.id).size)) : 1);
 }
 function validSet(t, ids) {
   const ok = new Map();   // assumes every node is levelled to its max_level
@@ -246,6 +263,11 @@ function validateTree(t) {
   const add = (sev, msg, node) => P.push({ sev, msg, node });
   const nodes = [...t.nodes.values()];
   if (!nodes.length) add('warn', _('The tree has no nodes.'));
+  if (t.requires_unlock) {
+    const id = gameId(t.ns, t.name);
+    const opens = S.trees.some(x => [...x.nodes.values()].some(n => (n.unlock_trees || []).some(u => u === id || (t.exclusive_group && u === '#' + t.exclusive_group))));
+    if (!opens) add('info', _('This tree is closed until a node opens it, but no loaded tree has a node with "{id}" in "Opens trees".', { id }));
+  }
   if (nodes.length && !nodes.some(n => n.start)) add('error', _('There is no start node: nobody will be able to take the first node. Tick "Start node" on at least one node.'));
 
   const reach = validSet(t, new Set(t.nodes.keys()));
@@ -278,7 +300,7 @@ function validateTree(t) {
     }
     for (const c of n.unlock_commands) if (c.startsWith('/')) add('info', _('Unlocked command with a leading "/" in {id}: the slash is ignored.', { id: n.id }), n.id);
     if (n.cost < 0) add('error', _('"{title}" ({id}) has a negative cost.', { title: n.title, id: n.id }), n.id);
-    if (n.kind === 'and' && incoming(t, n.id).size < n.require) add('error', _('"{title}" ({id}) requires {req} neighbors but only has {have} incoming links.', { title: n.title, id: n.id, req: n.require, have: incoming(t, n.id).size }), n.id);
+    if (n.kind === 'and' && n.require > 0 && incoming(t, n.id).size < n.require) add('error', _('"{title}" ({id}) requires {req} neighbors but only has {have} incoming links.', { title: n.title, id: n.id, req: n.require, have: incoming(t, n.id).size }), n.id);
     if (!/^[a-z0-9_.:\/-]+$/.test(n.icon) || !n.icon.includes(':')) add('warn', _('Doubtful icon format in {id}: "{icon}" (use mod:item).', { id: n.id, icon: n.icon }), n.id);
     if (S.tex.size && !S.tex.has(n.icon) && !n.icon.startsWith('minecraft:')) add('info', _('Icon "{icon}" ({id}) is not in the loaded textures.', { icon: n.icon, id: n.id }), n.id);
     for (const a of n.attributes) {
@@ -298,4 +320,113 @@ function validateTree(t) {
   for (const l of t.links.values()) {
   }
   return P;
+}
+
+
+/* ---------- mirror: keeping the copies in step ----------
+   Any tool that moves or bends the selection calls armMirror(nodes) first. It remembers which
+   node is the mirrored copy of which (while they still line up) and, when the tool commits,
+   moves the copies to the mirrored new positions and copies the bends of the links. */
+function armMirror(nodes) {
+  const t = S.cur; S.mirrorJob = null;
+  if (!t || mirrorCount() < 2 || !nodes || !nodes.length) return;
+  const sel = new Set(nodes), pairs = [], lostIds = new Set();
+  for (const n of nodes) for (let k = 1; k < mirrorCount(); k++) {
+    const [x, y] = mirrorApply(k, n.x, n.y), m = nodeNear(t, x, y, n);
+    if (!m) lostIds.add(n.id); else if (!sel.has(m)) pairs.push({ n, k, m });
+  }
+  const lpairs = [];
+  for (const l of t.links.values()) {
+    const a = t.nodes.get(l.from), b = t.nodes.get(l.to);
+    if (!a || !b || (!sel.has(a) && !sel.has(b))) continue;
+    for (let k = 1; k < mirrorCount(); k++) {
+      const pa = mirrorApply(k, a.x, a.y), pb = mirrorApply(k, b.x, b.y);
+      const ma = nodeNear(t, pa[0], pa[1]), mb = nodeNear(t, pb[0], pb[1]);
+      if (!ma || !mb || ma === mb || sel.has(ma) && sel.has(mb)) continue;
+      const ml = t.links.get(linkKey(ma.id, mb.id));
+      if (ml && ml !== l) lpairs.push({ l, ml, sign: (mirrorIsReflection(k) ? -1 : 1) * (ml.from === ma.id ? 1 : -1) });
+    }
+  }
+  S.mirrorJob = () => {
+    for (const { n, k, m } of pairs) { const [x, y] = mirrorApply(k, n.x, n.y); m.x = Math.round(x * 10) / 10; m.y = Math.round(y * 10) / 10; }
+    for (const { l, ml, sign } of lpairs) { if (l.curve) ml.curve = l.curve * sign; else delete ml.curve; }
+    if (lostIds.size) toast(_('Mirror: {n} mirrored copies were not found, so they did not move. Use "Repair mirror" or check the status bar.', { n: lostIds.size }));
+  };
+}
+/** Nodes that have no mirrored copy at one of the mirror positions (fast: spatial hash). */
+function mirrorOrphans(t) {
+  if (!t || mirrorCount() < 2) return [];
+  const cell = 8, grid = new Map(), key = (x, y) => Math.floor(x / cell) + ',' + Math.floor(y / cell);
+  for (const n of t.nodes.values()) { const k = key(n.x, n.y); (grid.get(k) || grid.set(k, []).get(k)).push(n); }
+  const near = (x, y, self) => {
+    const cx = Math.floor(x / cell), cy = Math.floor(y / cell);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const m of grid.get((cx + i) + ',' + (cy + j)) || [])
+      if (m !== self && Math.hypot(m.x - x, m.y - y) <= MIRROR_TOL) return true;
+    return false;
+  };
+  const out = [];
+  for (const n of t.nodes.values()) {
+    if (Math.hypot(n.x, n.y) < 0.5) continue;   // the centre is its own copy
+    for (let k = 1; k < mirrorCount(); k++) { const [x, y] = mirrorApply(k, n.x, n.y); if (Math.hypot(x - n.x, y - n.y) > MIRROR_TOL && !near(x, y, n)) { out.push(n); break; } }
+  }
+  return out;
+}
+/** Id shape shared by mirrored copies made by tools/scripts: "soldier_b0t" ~ "mage_b0t". Tries shorter tails. */
+function idTails(id) { const p = id.split('_'), out = []; for (let i = 1; i < Math.min(p.length, 4); i++) out.push(p.slice(i).join('_')); return out; }
+/** Moves the mirrored copies of the selected nodes back to the mirrored positions.
+ *  Copies are found by position, or by id (same name after the class prefix) when they drifted away. */
+function repairMirror() {
+  const t = S.cur;
+  if (!t || mirrorCount() < 2) return toast(_('Turn on Mirror first.'));
+  const ns = selNodes();
+  if (!ns.length) return toast(_('Select the nodes whose position is correct (e.g. one whole class) first.'));
+  const sel = new Set(ns), used = new Set(), byTail = new Map();
+  for (const m of t.nodes.values()) if (!sel.has(m)) for (const tl of idTails(m.id)) (byTail.get(tl) || byTail.set(tl, []).get(tl)).push(m);
+  let moved = 0;
+  for (const n of ns) for (let k = 1; k < mirrorCount(); k++) {
+    const [x, y] = mirrorApply(k, n.x, n.y);
+    let m = nodeNear(t, x, y, n);
+    if (!m) {
+      const lim = Math.max(300, 0.35 * Math.hypot(n.x, n.y));
+      for (const tl of idTails(n.id)) {
+        let best = null, bd = lim;
+        for (const c of byTail.get(tl) || []) { if (used.has(c)) continue; const d = Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = c; } }
+        if (best) { m = best; break; }
+      }
+    }
+    if (!m || sel.has(m)) continue;
+    used.add(m);
+    if (Math.hypot(m.x - x, m.y - y) > 0.05) { m.x = Math.round(x * 10) / 10; m.y = Math.round(y * 10) / 10; moved++; }
+  }
+  armMirror(ns);   // bends of the links follow too
+  commit();
+  toast(_('Mirror repaired: {n} copies moved.', { n: moved }));
+}
+/** With Mirror on: gives freshly created nodes (ids) their mirrored copies, with the links between them
+ *  and to existing nodes whose mirror exists. Returns the new copies. */
+function replicateMirrored(t, ids) {
+  if (mirrorCount() < 2 || !ids.length) return [];
+  const made = [], fresh = new Set(ids);
+  for (let k = 1; k < mirrorCount(); k++) {
+    const map = new Map();
+    for (const id of ids) {
+      const n = t.nodes.get(id), [x, y] = mirrorApply(k, n.x, n.y);
+      if (nodeNear(t, x, y, n)) continue;
+      const c = newNode(freshId(t), Math.round(x * 10) / 10, Math.round(y * 10) / 10, cloneProps(n));
+      c.start = n.start; t.nodes.set(c.id, c); map.set(id, c.id); made.push(c.id);
+    }
+    for (const l of [...t.links.values()]) {
+      if (!fresh.has(l.from) && !fresh.has(l.to)) continue;
+      const pick = id => {
+        if (map.has(id)) return map.get(id);
+        const o = t.nodes.get(id), [x, y] = mirrorApply(k, o.x, o.y), m = nodeNear(t, x, y);
+        return m ? m.id : null;
+      };
+      const a = pick(l.from), b = pick(l.to);
+      if (!a || !b || a === b || t.links.has(linkKey(a, b))) continue;
+      const nl = Object.assign({}, l, { from: a, to: b }); if (nl.curve && mirrorIsReflection(k)) nl.curve = -nl.curve;
+      t.links.set(linkKey(a, b), nl);
+    }
+  }
+  return made;
 }

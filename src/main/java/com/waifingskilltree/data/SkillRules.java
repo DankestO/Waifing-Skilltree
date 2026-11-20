@@ -26,9 +26,9 @@ public final class SkillRules {
             }
         }
         if (chosenSibling(t, n, level) != null) return false;   // another option of the same choice was picked
-        int count = 0;
-        for (SkillTree.Link l : t.incomingLinks(n.id)) if (level.applyAsInt(l.other(n.id)) >= minLevelOf(n, l)) count++;
-        int need = SkillNode.AND.equals(n.kind) ? n.require : 1;
+        int count = 0, links = 0;
+        for (SkillTree.Link l : t.incomingLinks(n.id)) { links++; if (level.applyAsInt(l.other(n.id)) >= minLevelOf(n, l)) count++; }
+        int need = SkillNode.AND.equals(n.kind) ? (n.require <= 0 ? Math.max(1, links) : n.require) : 1;
         return count >= need;
     }
 

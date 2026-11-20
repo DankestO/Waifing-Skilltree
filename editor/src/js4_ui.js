@@ -20,6 +20,9 @@ const UI = {
     const dirty = S.trees.some(x => x.dirty) || S.deleted.length;
     $('#stSave').textContent = dirty ? _('● unsaved changes') : _('✓ all saved');
     $('#stSave').style.color = dirty ? 'var(--warn)' : 'var(--ok)';
+    const orph = mirrorOrphans(t), mb = $('#stMirror');
+    mb.hidden = !orph.length;
+    if (orph.length) { mb.textContent = '⚠ ' + _('Mirror: {n} nodes have no mirrored copy', { n: orph.length }); mb.title = _('Click to select them'); mb.onclick = () => { S.sel = new Set(orph.map(n => n.id)); UI.refreshInspector(); requestDraw(); }; }
     $('#stMode').textContent = S.root ? _('Folder: {name}', { name: S.root.name }) : (HAS_FS ? _('No folder open') : _('File mode (this browser cannot write to folders)'));
     $('#fileInfo').textContent = t ? _('in-game id: {id}', { id: gameId(t.ns, t.name) }) : '';
     $('#welcome').innerHTML = t && t.nodes.size ? '' : `<div style="font-size:18px;color:#c8ccd8">${esc(_('Empty tree'))}</div>${esc(_('Pick Add (A) and click to place nodes, or open your datapack.'))}`;
@@ -55,7 +58,7 @@ function renderInspector() {
   const nodes = selNodes();
   if (!nodes.length) {
     el.innerHTML = `
-      <h3>${esc(_('Tree'))}</h3>
+      <h3>${esc(_('Skilltree'))}</h3>
       ${lab('Title (tab)')}<input data-tf="title" value="${esc(t.title)}">
       <div class="row"><div>${lab('Namespace')}<input data-tf="ns" value="${esc(t.ns)}" ${t.handle ? 'disabled' : ''}></div>
       <div>${lab('File')}<input data-tf="name" value="${esc(t.name)}" ${t.handle ? 'disabled' : ''}></div></div>
@@ -75,15 +78,18 @@ function renderInspector() {
       }).join('')}</div>
       <button id="glAdd" style="margin-top:4px">${esc(_('＋ Add group'))}</button>
       </details>
-      <details class="sec" data-sk="gl-links" ${secOpen.has('gl-links') ? 'open' : ''}><summary>${esc(_('Limited connections (choices)'))} · ${choiceForks(t).length}</summary>
+      <details class="sec" data-sk="gl-links" ${secOpen.has('gl-links') ? 'open' : ''}><summary>${esc(_('Limited connections (choices)'))} · ${listedForks(t).length}/${choiceForks(t).length}</summary>
       <div class="muted small" style="margin-bottom:4px">${esc(_('Additional settings for "Choice Nodes": here you can see all the "Choice Nodes" you have in total and group them.'))}<br>${esc(_('This makes it easier to add an extra "decision" to several "Choice Nodes" at once.'))}</div>
-      ${(() => { const fs = choiceForks(t); return fs.length ? fs.map(f => `<div class="cg-fork"><div class="row small"><span class="choice-dot"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.title)}</span><span class="muted" style="white-space:nowrap;flex:none">${esc(_('{n} options', { n: f.options.length }))} · ${esc(_('pick'))}</span><input class="fixed cl-num" type="number" min="0" data-cl="${esc(f.id)}" value="${f.limit}" title="${esc(_('How many options can be taken (0 = locked until a node opens it)'))}"><span class="muted">${f.limit === 0 ? ' 🔒' : ''}${f.bonus.length ? ' ' + esc(_('(+{b} with {who})', { b: f.bonus.reduce((s, x) => s + x[1], 0), who: f.bonus.map(x => x[0]).join(', ') })) : ''}</span></div>
+      <div class="muted small" style="margin-bottom:4px">${esc(_('Only choices with a changed limit, a group or extra picks are listed. To list another one, select its origin node and use "Customize this choice".'))}</div>
+      ${(() => { const fs = listedForks(t); return fs.length ? fs.map(f => `<div class="cg-fork"><div class="row small"><span class="choice-dot"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.title)}</span><span class="muted" style="white-space:nowrap;flex:none">${esc(_('{n} options', { n: f.options.length }))} · ${esc(_('pick'))}</span><input class="fixed cl-num" type="number" min="0" data-cl="${esc(f.id)}" value="${f.limit}" title="${esc(_('How many options can be taken (0 = locked until a node opens it)'))}"><span class="muted">${f.limit === 0 ? ' 🔒' : ''}${f.bonus.length ? ' ' + esc(_('(+{b} with {who})', { b: f.bonus.reduce((s, x) => s + x[1], 0), who: f.bonus.map(x => x[0]).join(', ') })) : ''}</span></div>
           <div class="row small cg-row"><span class="muted fixed">${esc(_('Choice group'))}</span><input data-cg="${esc(f.id)}" list="cgList" placeholder="${esc(_('none'))}" value="${esc(f.group)}"></div></div>`).join('')
           + `<datalist id="cgList">${choiceGroupIds(t).map(g => `<option value="${esc(g)}">`).join('')}</datalist>`
           + (() => { const gs = choiceGroupIds(t); return gs.length ? `<div class="gl-sub">${esc(_('Choice groups'))}</div>` + gs.map(g => { const fk = fs.filter(f => f.group === g), who = [...t.nodes.values()].filter(n => (n.group_bonus || {})['choices:' + g]);
               return `<div class="muted small">◆ <b>${esc(g)}</b>: ${esc(fk.map(f => f.title).join(', '))} · ${esc(who.length ? _('+{b} shared with {who}', { b: who.reduce((s, n) => s + n.group_bonus['choices:' + g], 0), who: who.map(n => n.title).join(', ') }) : _('no node gives extra picks yet'))}</div>`; }).join('') : ''; })()
         : `<div class="muted small">${esc(_('No choices yet.'))}</div>`; })()}
       </details>
+      <label class="chk" style="margin-top:10px"><input type="checkbox" data-tf="requires_unlock" ${t.requires_unlock ? 'checked' : ''}> <span>${esc(_('Closed until a node opens it'))}</span></label>
+      <div class="muted small" style="margin-top:3px">${esc(_('Nobody can use this tree until they own a node that lists it in "Opens trees" (in this or another tree).'))}</div>
       <label class="chk" style="margin-top:10px"><input type="checkbox" data-tf="first_start_only" ${t.first_start_only ? 'checked' : ''}> <span>${esc(_('Only the first start node is free'))}</span></label>
       <div class="muted small" style="margin-top:3px">${esc(_('Later start nodes must be reached through links (walking or portals), not picked directly.'))}</div>
       <div class="group" style="margin-top:16px"><h3>${esc(_('Summary'))}</h3>
@@ -105,12 +111,13 @@ function renderInspector() {
     <div class="row">${iconPrev(v('icon'))}<input data-f="icon" list="itemList" value="${val('icon')}" ${ph('icon')}></div>
     <div class="row"><div>${lab('Size (visual only)')}<select data-f="shape">${opts({ small: _('Small'), medium: _('Medium'), large: _('Large') }, shape)}</select></div>
     <div>${lab('Cost (skill points)')}<input data-f="cost" type="number" min="0" value="${val('cost')}" ${ph('cost')}></div></div>
+    <div class="row"><div>${lab('Shape')}<select data-f="form">${opts({ circle: _('Circle'), square: _('Square'), diamond: _('Diamond'), star: _('Star') }, v('form') || 'circle')}</select></div></div>
     <label style="text-transform:none;display:flex;gap:6px;align-items:center;margin:10px 0 0;color:var(--text)"><input type="checkbox" data-f="start" ${v('start') === true ? 'checked' : ''}> ${esc(_('Start node (the player may begin here, always available)'))}</label>
     <div class="row"><div>${lab('Max level')}<input data-f="max_level" type="number" min="1" value="${val('max_level')}" ${ph('max_level')}></div>
     <div>${lab('Extra cost per level')}<input data-f="cost_step" type="number" value="${val('cost_step')}" ${ph('cost_step')}></div></div>
     <div class="muted small" style="margin-top:3px">${esc(_('Max level above 1: the player can buy this node several times. Attributes are multiplied by the level; level k costs cost + (k-1) × extra.'))}</div>
     <div class="row"><div>${lab('Type')}<select data-f="kind">${opts({ normal: _('Normal'), and: _('AND') }, kind)}</select></div>
-    <div ${kind === 'and' ? '' : 'style="visibility:hidden"'}>${lab('Requires (neighbors)')}<input data-f="require" type="number" min="1" value="${val('require')}"></div></div>
+    <div ${kind === 'and' ? '' : 'style="visibility:hidden"'}>${lab('Requires (neighbors, 0 = all)')}<input data-f="require" type="number" min="0" value="${val('require')}"></div></div>
     <div class="row"><div>${lab('Previous node must be level')}<input data-f="requires_prev_level" type="number" min="1" value="${val('requires_prev_level')}" ${ph('requires_prev_level')}></div></div>
     ${lab('Color')}
     <div class="row"><input type="color" class="fixed" data-f="color" value="${v('color') || '#c9a24a'}"><button class="fixed" id="clearColor">${esc(_('No color'))}</button><span class="muted small">${v('color') ? esc(v('color')) : esc(_('no tint'))}</span></div>
@@ -131,6 +138,10 @@ function renderInspector() {
     <div id="gbRowsNode" class="gb-list">${gbRows(one && n0, 'node')}</div>
     ${one && Object.keys(S.cur.group_limits || {}).length ? `<button data-gbadd="node" style="margin-top:4px">${esc(_('＋ Raise a node group'))}</button>` : ''}
     <div class="gl-sub">${esc(_('Limited connections (choices)'))}</div>
+    ${one ? (() => { const f = choiceForks(S.cur).find(x => x.id === n0.id); if (!f) return '';
+      const listed = listedForks(S.cur).some(x => x.id === f.id);
+      return `<div class="row small" style="align-items:center"><span class="choice-dot"></span><span style="flex:1">${esc(_('This node opens a choice: {n} options · pick', { n: f.options.length }))}</span><input class="fixed cl-num" type="number" min="0" data-cl="${esc(f.id)}" value="${f.limit}" title="${esc(_('How many options can be taken (0 = locked until a node opens it)'))}"></div>
+        ${listed ? `<div class="muted small">${esc(_('Shown in the tree list of choices.'))}</div>` : `<button id="clPin" style="margin-top:4px">${esc(_('⚙ Customize this choice'))}</button><div class="muted small">${esc(_('Default limit (1): hidden from the tree list. Customize it to list it there (limit, group).'))}</div>`}`; })() : ''}
     ${one ? (() => { const fs = choiceForks(S.cur).filter(f => f.options.includes(n0.id)); return fs.length ? `<div class="muted small">${esc(_('This node is an option of:'))} ${fs.map(f => esc(f.title) + (f.group ? ' (' + esc(_('group {g}', { g: f.group })) + ')' : '')).join(' · ')}</div>
       ${lab('Free choice if you have (ids, one per line)')}
       <textarea data-f="free_choice_if" data-lines placeholder="mage_mastery">${esc((n0.free_choice_if || []).join('\n'))}</textarea>
@@ -165,7 +176,7 @@ function renderInspector() {
     <div class="muted small">${esc(_('Added to the recipe book while the node is taken. Use the recipe type waifing_skilltree:skill_locked so only players with the node can craft it (no gamerule needed).'))}</div>
     ${lab('Right-click recipes unlocked (ids, one per line)')}<textarea data-f="click_recipes" data-lines placeholder="mymod:sharpen_sword">${esc((v('click_recipes') || []).join('\n'))}</textarea>
     <div class="muted small">${esc(_('Defined in data/<namespace>/waifingskilltree/click_recipes/<name>.json. Hold the catalyst on the cursor and right click the target in the inventory.'))}</div>
-    ${lab('Opens trees (exclusive groups)')}<textarea data-f="unlock_trees" data-lines placeholder="waifing_mage&#10;#class">${esc((v('unlock_trees') || []).join('\n'))}</textarea>
+    ${lab('Opens trees (closed or exclusive trees)')}<textarea data-f="unlock_trees" data-lines placeholder="waifing_mage&#10;#class">${esc((v('unlock_trees') || []).join('\n'))}</textarea>
     <div class="muted small">${esc(_('In-game tree ids, or #group for every tree of that group. Lets the player use them even though they chose another tree of the group.'))}</div>
     ${lab('Commands unlocked for the player (one per line, no "/")')}<textarea data-f="unlock_commands" data-lines placeholder="say">${esc((v('unlock_commands') || []).join('\n'))}</textarea>
     <div class="muted small">${esc(_('The player may use these commands while the node is taken (e.g. "say" or "gamemode creative"). Everyone else is blocked from them.'))}</div>
@@ -351,6 +362,7 @@ insp.addEventListener('click', e => {
     const g = (ts.find(x => !(x[0] in cur)) || ts[0])[0];
     setField('group_bonus', { ...cur, [g]: (cur[g] || 0) + 1 }, true); renderInspector();
   }
+  else if (b.id === 'clPin') { const id = selNodes()[0].id; (S.cur.cl_pinned ||= new Set()).add(id); renderInspector(); toast(_('Choice listed in the tree settings (click empty space).')); }
   else if (b.dataset.gb === 'del') { b.closest('.gb-row').remove(); readBonusRows(); renderInspector(); }
 });
 insp.addEventListener('change', e => {
@@ -373,6 +385,7 @@ insp.addEventListener('change', e => {
     if (f === 'ns') t.ns = sanitizeNs(el.value);
     else if (f === 'name') t.name = sanitizePath(el.value);
     else if (f === 'first_start_only') t.first_start_only = el.checked;
+    else if (f === 'requires_unlock') t.requires_unlock = el.checked;
     else t[f] = el.value;
     if (f === 'ns' || f === 'name') t.id = gameId(t.ns, t.name);
     t.dirty = true; UI.refreshAll(); return;
@@ -388,7 +401,7 @@ insp.addEventListener('change', e => {
     else val = el.value;
     if (f === 'max_level' || f === 'requires_prev_level') val = Math.max(1, Math.round(val) || 1);
     if (f === 'cap_level' || f === 'cap_count') val = Math.max(0, Math.round(val) || 0);
-    const structural = f === 'kind' || f === 'shape' || f === 'icon' || f === 'color' || f === 'start';
+    const structural = f === 'kind' || f === 'shape' || f === 'form' || f === 'icon' || f === 'color' || f === 'start';
     setField(f, val, true);
     if (structural) renderInspector();
     return;
@@ -444,7 +457,8 @@ function duplicateSelection() {
   if (!src.length) return;
   const map = new Map(), ids = [];
   for (const n of src) { const c = newNode(freshId(t), n.x + 30, n.y + 30, cloneProps(n)); t.nodes.set(c.id, c); map.set(n.id, c.id); ids.push(c.id); }
-  for (const l of [...t.links.values()]) if (map.has(l.from) && map.has(l.to)) { const a = map.get(l.from), b = map.get(l.to); t.links.set(linkKey(a, b), { from: a, to: b, type: l.type }); }
+  for (const l of [...t.links.values()]) if (map.has(l.from) && map.has(l.to)) { const a = map.get(l.from), b = map.get(l.to); t.links.set(linkKey(a, b), Object.assign({}, l, { from: a, to: b })); }
+  replicateMirrored(t, ids);   // with Mirror on the copies appear in every mirrored place too
   S.sel = new Set(ids); commit();
 }
 
@@ -614,6 +628,13 @@ window.addEventListener('drop', e => {
 
 /* ---------- saving ---------- */
 async function saveAction() {
+  if (!S.root && HAS_FS && S.trees.length) {      // nothing opened from a folder yet: pick where the unzipped datapack goes
+    let dir;
+    try { dir = await window.showDirectoryPicker({ mode: 'readwrite' }); } catch (e) { return; }
+    S.root = dir; S.rootHasMeta = false;
+    try { await dir.getFileHandle('pack.mcmeta'); S.rootHasMeta = true; } catch (e) { /* new folder */ }
+    S.trees.forEach(t => { t.handle = null; });
+  }
   if (S.root) {
     try { await saveToFolder(); toast(_('Saved into the datapack folder. In game: /reload')); }
     catch (e) { toast(_('Error while saving: {err}', { err: e.message })); }
@@ -857,3 +878,21 @@ S.cur = first;
 setTool('view');
 resizeCanvas();
 setLang(LANG);
+
+/* ---------- side panel: every group but "Tool" starts folded; click a heading to open or fold it ---------- */
+(() => {
+  let open = {};
+  try { open = JSON.parse(localStorage.getItem('wst_groups') || '{}'); } catch (e) { open = {}; }
+  $$('#tools .group').forEach((g, i) => {
+    const h = $('h3', g); if (!h) return;
+    const key = h.textContent.trim() || 'g' + i;
+    if (i === 0) return;                       // the Tool group always stays open
+    g.classList.add('foldable');
+    g.classList.toggle('closed', !open[key]);
+    h.addEventListener('click', () => {
+      g.classList.toggle('closed');
+      open[key] = !g.classList.contains('closed');
+      try { localStorage.setItem('wst_groups', JSON.stringify(open)); } catch (e) { /* no storage */ }
+    });
+  });
+})();

@@ -198,6 +198,32 @@ ol.explain{margin:6px 0 4px;padding-left:18px;line-height:1.45}
 .cg-row{margin-left:14px;gap:6px}.cg-row input{flex:1;min-width:0;padding:2px 6px;font-size:12px}
 .cl-num{width:44px;padding:1px 4px;font-size:12px;margin-left:4px}
 
+.rot-presets{display:flex;gap:3px;margin:5px 0 6px}.rot-presets button{flex:1;padding:3px 0;font-size:11px;min-width:0}
+
+#nodeMenu{position:fixed;z-index:61;background:#16181ef8;border:1px solid #4a4f60;border-radius:10px;padding:6px;box-shadow:0 10px 30px #000a;min-width:210px;display:flex;flex-direction:column;gap:4px}
+#nodeMenu[hidden]{display:none}
+#nodeMenu button{display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:left;padding:6px 9px}
+#nodeMenu kbd{color:var(--muted);font-size:10.5px}
+#nodeMenu .nm-hint{font-size:11px;color:var(--muted);padding:3px 4px 1px;max-width:220px;line-height:1.35}
+#addMenuForms button{padding:4px 8px;font-size:12px;white-space:nowrap}
+#stMirror{background:none;border:1px solid var(--warn);color:var(--warn);border-radius:6px;padding:1px 8px;font-size:11.5px;cursor:pointer}
+#stMirror[hidden]{display:none}
+.toolgrid.three{grid-template-columns:1fr 1fr 1fr;margin-bottom:5px}
+.toolgrid.three button{font-size:12px;padding:6px 5px}
+#tools .group .toolgrid+.toolgrid{margin-top:5px}
+#addMenuForms button{font-size:14px;padding:3px 0;flex:1}
+
+#tools .group.foldable>h3{cursor:pointer;user-select:none}
+#tools .group.foldable>h3::before{content:'▾ ';opacity:.7}
+#tools .group.foldable.closed>h3::before{content:'▸ '}
+#tools .group.foldable.closed>:not(h3){display:none}
+#tools .group.foldable.closed{margin-bottom:8px}
+#lkModeBox{margin-bottom:6px}
+#lkModeBox[hidden]{display:none}
+.lkmodes{display:flex;gap:3px}
+.lkmodes button{flex:1;padding:5px 4px;font-size:11.5px}
+.lkmodes button.on{border-color:var(--accent);background:#2e2a1c;color:var(--accent)}
+
 </style>
 </head>
 <body>
@@ -206,7 +232,7 @@ ol.explain{margin:6px 0 4px;padding-left:18px;line-height:1.45}
     <span class="brand">Waifing Skilltree · Editor</span>
     <button id="btnOpenDir" data-i data-it title="Choose the datapack root folder (the one with pack.mcmeta and data/)">Open datapack folder</button>
     <button id="btnOpenFiles" data-i data-it title="Open .json trees, .zip datapacks or .jar files (you can pick several)">Open files…</button>
-    <button id="btnSave" class="primary" data-i data-it title="Ctrl+S">Save</button>
+    <button id="btnSave" class="primary" data-i data-it title="Save the datapack as a folder (unzipped) — Ctrl+S">Save</button>
     <button id="btnZip" data-i>⬇ Export .zip</button>
     <span class="sep"></span>
     <button id="btnUndo" data-it title="Undo (Ctrl+Z)">↶</button>
@@ -279,34 +305,60 @@ ol.explain{margin:6px 0 4px;padding-left:18px;line-height:1.45}
       <div class="group">
         <h3 data-i>Tool</h3>
         <div class="toolgrid" id="toolBtns">
+          <button data-tool="select" class="wide" data-it title="Click: select · Drag: move · Drag on empty space: box select · Right-click a node: menu (delete, duplicate) · Delete key: delete"><i>⬚</i><span data-i>Select/Move</span> <kbd>V</kbd></button>
           <button data-tool="view"><i>◉</i><span data-i>Preview</span> <kbd>P</kbd></button>
-          <button data-tool="select"><i>⬚</i><span data-i>Select</span> <kbd>V</kbd></button>
           <button data-tool="add"><i>✚</i><span data-i>Add</span> <kbd>A</kbd></button>
           <button data-tool="link"><i>⟋</i><span data-i>Connect</span> <kbd>L</kbd></button>
-          <button data-tool="delete"><i>✕</i><span data-i>Delete</span> <kbd>X</kbd></button>
           <button data-tool="bend"><i>⌒</i><span data-i>Curve links</span> <kbd>B</kbd></button>
         </div>
       </div>
       <div class="group">
         <h3 data-i>Arrange selection</h3>
         <div class="toolgrid">
-          <button id="arrCircle" data-it title="Even circle around the selection's centre; links between neighbours follow the circle"><span data-i>◯ Circle</span></button>
-          <button id="arrArc" data-it title="Keeps both ends and bends the rest into an arc"><span data-i>◠ Arc</span></button>
-          <button id="arrLine" data-it title="Straight line, evenly spaced, between the two farthest nodes"><span data-i>— Line</span></button>
-          <button id="arrGrid" data-it title="Grid with the step below"><span data-i>▦ Grid</span></button>
-          <button id="arrTidy" class="wide" data-it title="Select ONE node: everything hanging from it (further from the starts) becomes a tidy tree growing away from its parent"><span data-i>⤷ Tidy branch from node</span></button>
           <button id="arrSpread" data-it title="Spread the selection apart (nothing selected = whole tree). With Mirror on it keeps the symmetry. Shift = bigger step. Key ]"><span data-i>⤧ Spread</span></button>
           <button id="arrShrink" data-it title="Pull the selection together (nothing selected = whole tree). With Mirror on it keeps the symmetry. Shift = bigger step. Key ["><span data-i>⤡ Pull together</span></button>
-          <button id="arrRotL" data-it title="Turn the selection 90° counter-clockwise, keeping its shape (nothing selected = whole tree). With Mirror on the copies follow. Key Shift+R"><span data-i>⟲ 90°</span></button>
-          <button id="arrRotR" data-it title="Turn the selection 90° clockwise, keeping its shape (nothing selected = whole tree). With Mirror on the copies follow. Key R"><span data-i>⟳ 90°</span></button>
-          <button id="arrRelax" class="wide" data-it title="Pushes overlapping nodes apart and evens out link lengths (nothing selected = whole tree)"><span data-i>✳ Untangle</span></button>
-          <button id="arrCurveC" data-it title="Links between selected nodes follow a circle around the selection's centre"><span data-i>⤺ Curve (centre)</span></button>
-          <button id="arrCurveO" data-it title="Links between selected nodes follow a circle around (0,0)"><span data-i>⤺ Curve (0,0)</span></button>
-          <button id="arrStraight" data-it title="Straight links again"><span data-i>Straighten</span></button>
-          <button id="arrSnap" data-it title="Snap the selection (or everything) to the grid"><span data-i>Snap selection</span></button>
+        </div>
+        <div class="toolgrid">
+          <button id="arrCurveC" data-it title="Links between selected nodes follow a circle around the selection's centre"><span data-i>⤺ Bend links (selection)</span></button>
+          <button id="arrCurveO" data-it title="Links between selected nodes follow a circle around (0,0)"><span data-i>◎ Bend links (tree centre)</span></button>
+          <button id="arrStraight" data-it title="Straight links again">⟋ <span data-i>Straighten</span></button>
+          <button id="arrRelax" data-it title="Pushes overlapping nodes apart and evens out link lengths (nothing selected = whole tree)"><span data-i>✳ Untangle</span></button>
+        </div>
+        <div class="toolgrid">
+          <button id="arrArc" data-it title="Keeps both ends and bends the rest into an arc"><span data-i>◠ Arc</span></button>
+          <button id="arrLine" data-it title="Straight line, evenly spaced, between the two farthest nodes"><span data-i>— Line</span></button>
+          <button id="arrGrid" data-it title="Rows and columns, keeping the rows you already had (nodes at a similar height share a row)"><span data-i>▦ Grid</span></button>
+          <button id="arrSnap" data-it title="Snap the selection (or everything) to the grid">⌗ <span data-i>Snap selection</span></button>
+        </div>
+        <div class="toolgrid">
+          <button id="arrCircle" data-it title="Even circle around the selection's centre; links between neighbours follow the circle"><span data-i>◯ Circle</span></button>
+          <button id="arrSquare" data-it title="Even square around the selection's centre. Press it again to turn it 45° into a diamond (a node that splits into two paths that meet again)"><span data-i>□ Square</span></button>
         </div>
         <label data-i>Step (distance between nodes)</label>
         <input id="arrStep" type="number" min="30" max="200" value="56">
+      </div>
+      <div class="group">
+        <h3 data-i>Rotate and mirror</h3>
+        <div class="row" style="align-items:center;gap:6px">
+          <input id="rotAngle" type="number" step="any" value="90" style="width:80px;flex:none" data-it title="Angle (°)">
+          <button id="arrRotL" style="flex:1" data-it title="Turn the selection by the angle on the left, counter-clockwise (nothing selected = whole tree around (0,0)). With Mirror on the copies follow. Key Shift+R">⟲</button>
+          <button id="arrRotR" style="flex:1" data-it title="Turn the selection by the angle on the left, clockwise (nothing selected = whole tree around (0,0)). With Mirror on the copies follow. Key R">⟳</button>
+        </div>
+        <div class="rot-presets"><button data-ra="1">1°</button><button data-ra="5">5°</button><button data-ra="15">15°</button><button data-ra="30">30°</button><button data-ra="45">45°</button><button data-ra="60">60°</button><button data-ra="90">90°</button></div>
+        <div class="toolgrid">
+          <button id="arrStraighten" data-it title="Turns the selection so its main direction is exactly vertical, horizontal or a multiple of 15°"><span data-i>⊾ Align</span></button>
+          <button id="arrAim" data-it title="Turns the selection so its main direction points exactly at (0,0), like a branch of a round tree"><span data-i>◎ Point to centre</span></button>
+        </div>
+        <label data-i>Mirror axis</label>
+        <div class="row" style="align-items:center;gap:6px">
+          <input id="mirAngle" type="number" step="any" value="0" style="width:80px;flex:none" data-it title="Axis angle (0° = vertical, 90° = horizontal)">
+          <select id="mirPivot"><option value="sel" data-i>through the selection centre</option><option value="origin" data-i>through (0,0)</option></select>
+        </div>
+        <div class="toolgrid">
+          <button id="arrFlip" data-it title="Flips the selection over the axis, in place"><span data-i>⇋ Flip</span></button>
+          <button id="arrMirCopy" data-it title="Creates a mirrored copy of the selection on the other side of the axis, with its links. Links to nodes outside the selection are copied too when the mirrored node exists"><span data-i>⧉ Mirror copy</span></button>
+          <button id="arrMirrorFix" class="wide" data-it title="Makes the mirrored copies follow the selected nodes again (Mirror mode)"><span data-i>⟲ Repair mirror</span></button>
+        </div>
       </div>
       <div class="group">
         <h3 data-i>Actions</h3>
@@ -327,11 +379,18 @@ ol.explain{margin:6px 0 4px;padding-left:18px;line-height:1.45}
       <div id="nodeTip" hidden></div>
       <canvas id="minimap" width="180" height="180" hidden></canvas>
       <div id="legend" hidden></div>
+      <div id="nodeMenu" hidden>
+        <button id="nmDup" type="button"><span data-i>⧉ Duplicate</span><kbd>Ctrl+D</kbd></button>
+        <button id="nmDel" type="button" class="danger"><span data-i>✕ Delete</span><kbd data-i>Del</kbd></button>
+        <div class="nm-hint" data-i>Tip: the Delete key removes the selected nodes faster.</div>
+      </div>
       <div id="addMenu" hidden>
         <div class="am-title" data-i>Node type</div>
         <div id="addMenuTypes" class="seg"></div>
         <div class="am-title" data-i>Size</div>
         <div id="addMenuSizes"></div>
+        <div class="am-title" data-i>Shape</div>
+        <div id="addMenuForms" class="seg"><button type="button" data-form="circle" data-it title="Circle">●</button><button type="button" data-form="square" data-it title="Square">■</button><button type="button" data-form="diamond" data-it title="Diamond">◆</button><button type="button" data-form="star" data-it title="Star">★</button></div>
         <div class="am-title" data-i>Color</div>
         <div id="addMenuColors" class="swatches"></div>
         <div class="row" style="margin-top:4px"><input type="color" id="addMenuPick" class="fixed" data-it title="Custom color"><button id="addMenuCopy" class="chip" type="button" data-it title="New nodes copy everything from the selected node (attributes, icon, colour…)"><span data-i>⧉ Copy selected node</span></button></div>
@@ -339,12 +398,12 @@ ol.explain{margin:6px 0 4px;padding-left:18px;line-height:1.45}
         <select id="newKind" hidden><option value="normal">normal</option><option value="and">and</option></select>
         <input type="checkbox" id="newStart" hidden><input type="checkbox" id="copySel" hidden><input id="newColor" hidden>
       </div>
-      <div id="linkMenu" hidden><div class="am-title" data-i>Link type</div><div id="linkMenuItems"></div><label id="lkLevelRow" class="lklevel" hidden><span data-i>Needs the origin at level</span> <input id="lkLevel" type="number" min="0" max="100" value="0"> <span class="muted small" data-i>(0 = just taken)</span></label></div>
+      <div id="linkMenu" hidden><div id="lkModeBox"><div class="am-title" data-i>Connect mode</div><div class="seg lkmodes" id="lkModes"><button type="button" data-lm="normal" data-i data-it title="Click A then B; the next click starts a new link">Normal</button><button type="button" data-lm="chain" data-i data-it title="B becomes the next A: draw a path node by node (same as holding Shift)">Continuous</button><button type="button" data-lm="static" data-i data-it title="A stays selected: link several nodes to the same origin">Static</button></div></div><div class="am-title" data-i>Link type</div><div id="linkMenuItems"></div><label id="lkLevelRow" class="lklevel" hidden><span data-i>Needs the origin at level</span> <input id="lkLevel" type="number" min="0" max="100" value="0"> <span class="muted small" data-i>(0 = just taken)</span></label></div>
       <div id="dropHint" data-i>Drop .json, .zip or folders here to import</div>
     </section>
     <aside id="inspector"></aside>
   </main>
-  <footer id="status"><span id="stCount"></span><span id="stCursor"></span><span id="stMode"></span><span id="stSave" style="margin-left:auto"></span></footer>
+  <footer id="status"><span id="stCount"></span><span id="stCursor"></span><span id="stMode"></span><button id="stMirror" type="button" hidden></button><span id="stSave" style="margin-left:auto"></span></footer>
 </div>
 
 <datalist id="attrList"></datalist>
@@ -406,6 +465,57 @@ let LANG = 'en';
 try { LANG = localStorage.getItem(LANG_KEY) === 'es' ? 'es' : 'en'; } catch (e) { /* storage unavailable */ }
 
 const ES = {
+  "Requires (neighbors, 0 = all)": "Requiere (vecinos, 0 = todos)",
+  "Square": "Cuadrado", "Star": "Estrella",
+  "⤺ Bend links (selection)": "⤺ Curvar enlaces (selección)",
+  "◎ Bend links (tree centre)": "◎ Curvar enlaces (centro del árbol)",
+  "Click: select · Drag: move (with mirror) · Shift: extend selection · Drag on empty space: box select · Right-click a node: delete / duplicate · Del: delete": "Clic: seleccionar · Arrastrar: mover (con espejo) · Shift: añadir a la selección · Arrastrar en vacío: seleccionar con un recuadro · Clic derecho en un nodo: eliminar / duplicar · Supr: eliminar",
+  "Turn on Mirror first.": "Activa el modo Espejo primero.",
+  "◇ Diamond": "◇ Diamante",
+  "□ Square": "□ Cuadrado",
+  "★ Star": "★ Estrella",
+  "Even square around the selection's centre. Press it again to turn it 45° into a diamond (a node that splits into two paths that meet again)": "Cuadrado regular alrededor del centro de la selección. Púlsalo otra vez y gira 45° hasta un diamante (un nodo que se divide en dos caminos que vuelven a unirse)",
+  "Five-pointed star around the selection's centre": "Estrella de cinco puntas alrededor del centro de la selección",
+  "◯ Circle": "◯ Círculo",
+  "Even diamond (square turned 45°) around the selection's centre, keeping the order around it": "Rombo regular (un cuadrado girado 45°) alrededor del centro de la selección, respetando el orden",
+  "⟲ Repair mirror": "⟲ Reparar espejo",
+  "Makes the mirrored copies follow the selected nodes again (Mirror mode)": "Hace que las copias espejo vuelvan a seguir a los nodos seleccionados (modo Espejo)",
+  "⧉ Duplicate": "⧉ Duplicar",
+  "✕ Delete": "✕ Eliminar",
+  "Del": "Supr",
+  "Tip: the Delete key removes the selected nodes faster.": "Consejo: con la tecla Supr borras los nodos seleccionados más rápido.",
+  "Click: select · Drag: move · Drag on empty space: box select · Right-click a node: menu (delete, duplicate) · Delete key: delete": "Clic: seleccionar · Arrastrar: mover · Arrastrar en vacío: seleccionar con un recuadro · Clic derecho en un nodo: menú (eliminar, duplicar) · Supr: eliminar",
+  "Mirror: {n} nodes have no mirrored copy": "Espejo: {n} nodos sin copia reflejada",
+  "Click to select them": "Clic para seleccionarlos",
+  "Mirror: {n} mirrored copies were not found, so they did not move. Use \"Repair mirror\" or check the status bar.": "Espejo: no se encontraron {n} copias reflejadas, así que no se movieron. Usa «Reparar espejo» o mira la barra de estado.",
+  "Mirror repaired: {n} copies moved.": "Espejo reparado: {n} copias movidas.",
+  "Select the nodes whose position is correct (e.g. one whole class) first.": "Primero selecciona los nodos cuya posición es la buena (por ejemplo, una clase entera).",
+  "Select/Move": "Seleccionar/Mover",
+  "Rotate and mirror": "Girar y espejo",
+  "Angle (°)": "Ángulo (°)",
+  "Turn the selection by the angle on the left, counter-clockwise (nothing selected = whole tree around (0,0)). With Mirror on the copies follow. Key Shift+R": "Gira la selección el ángulo de la izquierda, en sentido antihorario (sin selección = todo el árbol alrededor de (0,0)). Con Espejo activo, las copias la siguen. Tecla Shift+R",
+  "Turn the selection by the angle on the left, clockwise (nothing selected = whole tree around (0,0)). With Mirror on the copies follow. Key R": "Gira la selección el ángulo de la izquierda, en sentido horario (sin selección = todo el árbol alrededor de (0,0)). Con Espejo activo, las copias la siguen. Tecla R",
+  "Selection turned {a}°.": "Selección girada {a}°.",
+  "Whole tree turned {a}° around (0,0).": "Todo el árbol girado {a}° alrededor de (0,0).",
+  "⊾ Align": "⊾ Alinear",
+  "Turns the selection so its main direction is exactly vertical, horizontal or a multiple of 15°": "Gira la selección para que su dirección principal quede justo vertical, horizontal o en un múltiplo de 15°",
+  "◎ Point to centre": "◎ Apuntar al centro",
+  "Turns the selection so its main direction points exactly at (0,0), like a branch of a round tree": "Gira la selección para que su dirección principal apunte justo a (0,0), como una rama de un árbol redondo",
+  "Aligned: turned {a}°.": "Alineada: girada {a}°.",
+  "Mirror axis": "Eje del espejo",
+  "Axis angle (0° = vertical, 90° = horizontal)": "Ángulo del eje (0° = vertical, 90° = horizontal)",
+  "through the selection centre": "centro de selección",
+  "through (0,0)": "por (0,0)",
+  "⇋ Flip": "⇋ Voltear",
+  "Flips the selection over the axis, in place": "Voltea la selección sobre el eje, en su sitio",
+  "⧉ Mirror copy": "⧉ Copia en espejo",
+  "Creates a mirrored copy of the selection on the other side of the axis, with its links. Links to nodes outside the selection are copied too when the mirrored node exists": "Crea una copia reflejada de la selección al otro lado del eje, con sus enlaces. Los enlaces a nodos de fuera también se copian si existe el nodo reflejado",
+  "Flipped {n} nodes.": "Volteados {n} nodos.",
+  "Mirrored copy: {n} nodes.": "Copia en espejo: {n} nodos.",
+  "Shape": "Forma",
+  "Circle": "Círculo",
+  "Diamond": "Diamante",
+  "Rows and columns, keeping the rows you already had (nodes at a similar height share a row)": "Filas y columnas, respetando las filas que ya tenías (los nodos a una altura parecida van en la misma fila)",
   "No \"data\" folder found inside the chosen folder.": "No se encontró la carpeta \"data\" dentro de la carpeta elegida.",
   "Could not read {file}: {err}": "No se pudo leer {file}: {err}",
   "This browser cannot unzip compressed files. Update it, or extract the zip first.": "Este navegador no puede descomprimir archivos. Actualízalo o extrae el zip primero.",
@@ -471,6 +581,15 @@ const ES = {
   "Pick Add (A) and click to place nodes, or open your datapack.": "Elige Añadir (A) y haz clic para colocar nodos, o abre tu datapack.",
   "＋ Tree": "＋ Árbol",
   "Tree": "Árbol",
+  "Skilltree": "Skilltree",
+  "Connect mode": "Modo de conexión",
+  "Continuous": "Continua",
+  "Static": "Estática",
+  "Click A then B; the next click starts a new link": "Clic en A y luego en B; el siguiente clic empieza otra conexión",
+  "B becomes the next A: draw a path node by node (same as holding Shift)": "B pasa a ser el siguiente A: dibuja un camino nodo a nodo (igual que mantener Shift)",
+  "A stays selected: link several nodes to the same origin": "A se queda seleccionado: conecta varios nodos al mismo origen",
+  "Connect mode: {m}": "Modo de conexión: {m}",
+  "Click A then B: create/remove a link · Shift+click B: keep chaining from B · Right-click: link type and connect mode (normal / continuous / static) · Esc: cancel": "Clic en A y luego en B: crear/quitar conexión · Shift+clic en B: seguir encadenando desde B · Clic derecho: tipo de conexión y modo (normal / continua / estática) · Esc: cancelar",
   "Title (tab)": "Título (pestaña)",
   "Namespace": "Namespace",
   "File": "Archivo",
@@ -483,7 +602,7 @@ const ES = {
   "{n} nodes · {l} links": "{n} nodos · {l} enlaces",
   "✔ Validate": "✔ Validar",
   "Delete tree": "Borrar árbol",
-  "Select nodes with the Select tool (V) to edit them. Drag on empty space to select several.": "Selecciona nodos con la herramienta Seleccionar (V) para editarlos. Arrastra en vacío para seleccionar varios.",
+  "Select nodes with the Select tool (V) to edit them. Drag on empty space to select several.": "Selecciona nodos con la herramienta Seleccionar/Mover (V) para editarlos. Arrastra en vacío para seleccionar varios.",
   "(several)": "(varios)",
   "Node {id}": "Nodo {id}",
   "ID: {id}": "ID: {id}",
@@ -564,6 +683,7 @@ const ES = {
   "Open datapack folder": "Abrir carpeta de datapack",
   "Open files…": "Abrir archivos…",
   "Save": "Guardar",
+  "Save the datapack as a folder (unzipped) — Ctrl+S": "Guarda el datapack como carpeta (descomprimido) — Ctrl+S",
   "⬇ Export .zip": "⬇ Exportar .zip",
   "Libraries": "Bibliotecas",
   "This browser can't write straight into a folder (Brave, Firefox and Safari block that feature). Everything else works: open folders, .zip and .json files, and Save downloads a .zip you can drop into world/datapacks.": "Este navegador no puede escribir directamente en una carpeta (Brave, Firefox y Safari bloquean esa función). Todo lo demás funciona: abrir carpetas, archivos .zip y .json, y Guardar descarga un .zip que puedes soltar en world/datapacks.",
@@ -746,7 +866,7 @@ Object.assign(ES, {
   'Added to the recipe book while the node is taken. Use the recipe type waifing_skilltree:skill_locked so only players with the node can craft it (no gamerule needed).': 'Se añade al libro de recetas mientras tengas el nodo. Usa el tipo de receta waifing_skilltree:skill_locked para que solo quien tenga el nodo pueda fabricarla (sin gamerule).',
   'Right-click recipes unlocked (ids, one per line)': 'Recetas de clic derecho desbloqueadas (ids, una por línea)',
   'Defined in data/<namespace>/waifingskilltree/click_recipes/<name>.json. Hold the catalyst on the cursor and right click the target in the inventory.': 'Se definen en data/<namespace>/waifingskilltree/click_recipes/<nombre>.json. Coge el catalizador con el cursor y haz clic derecho sobre el objetivo en el inventario.',
-  'Opens trees (exclusive groups)': 'Abre árboles (grupos exclusivos)',
+  'Opens trees (closed or exclusive trees)': 'Abre árboles (cerrados o exclusivos)',
   'In-game tree ids, or #group for every tree of that group. Lets the player use them even though they chose another tree of the group.': 'Ids de árbol del juego, o #grupo para todos los árboles de ese grupo. Permite usarlos aunque el jugador eligiera otro árbol del grupo.',
   'Right-click recipe id "{r}" ({id}) should look like namespace:file_name.': 'El id de receta de clic derecho "{r}" ({id}) debería ser namespace:nombre_de_archivo.',
   '"{id}" opens the group {u}, but no loaded tree uses that exclusive group.': '"{id}" abre el grupo {u}, pero ningún árbol cargado usa ese grupo exclusivo.',
@@ -770,20 +890,18 @@ Object.assign(ES, {
   'Attribute category': 'Categoría de atributo', 'Node role': 'Papel del nodo',
   'Coloured regions': 'Regiones de color', 'Values under nodes (zoom in)': 'Valores bajo los nodos (con zoom)', 'Minimap': 'Minimapa',
   'Arrange selection': 'Ordenar selección', '◯ Circle': '◯ Círculo', '◠ Arc': '◠ Arco', '— Line': '— Línea', '▦ Grid': '▦ Cuadrícula',
-  '⤷ Tidy branch from node': '⤷ Ordenar rama desde el nodo', '✳ Untangle': '✳ Desenredar', '⤺ Curve (centre)': '⤺ Curvar (centro)',
+  '✳ Untangle': '✳ Desenredar', '⤺ Curve (centre)': '⤺ Curvar (centro)',
   '⤺ Curve (0,0)': '⤺ Curvar (0,0)', 'Straighten': 'Enderezar', 'Snap selection': 'Ajustar selección', 'Step (distance between nodes)': 'Paso (distancia entre nodos)',
   "Even circle around the selection's centre; links between neighbours follow the circle": 'Círculo regular alrededor del centro de la selección; los enlaces entre vecinos siguen el círculo',
   'Keeps both ends and bends the rest into an arc': 'Mantiene los extremos y curva el resto en un arco',
   'Straight line, evenly spaced, between the two farthest nodes': 'Línea recta y espaciada entre los dos nodos más alejados',
   'Grid with the step below': 'Cuadrícula con el paso de abajo',
-  'Select ONE node: everything hanging from it (further from the starts) becomes a tidy tree growing away from its parent': 'Selecciona UN nodo: todo lo que cuelga de él (más lejos de los inicios) se ordena como un árbol que crece alejándose de su padre',
   'Pushes overlapping nodes apart and evens out link lengths (nothing selected = whole tree)': 'Separa nodos solapados e iguala la longitud de los enlaces (sin selección = todo el árbol)',
   "Links between selected nodes follow a circle around the selection's centre": 'Los enlaces entre nodos seleccionados siguen un círculo alrededor del centro de la selección',
   'Links between selected nodes follow a circle around (0,0)': 'Los enlaces entre nodos seleccionados siguen un círculo alrededor de (0,0)',
   'Straight links again': 'Vuelve a poner los enlaces rectos', 'Snap the selection (or everything) to the grid': 'Ajusta la selección (o todo) a la cuadrícula',
   'Curve links: drag a link to bend it · Shift+click: straight again': 'Curvar enlaces: arrastra un enlace para curvarlo · Shift+clic: recto otra vez',
-  'Select at least {n} nodes first (Select tool, drag a box or Shift+click).': 'Primero selecciona al menos {n} nodos (herramienta Seleccionar, arrastra un recuadro o Shift+clic).',
-  'Select exactly one node: the root of the branch to tidy.': 'Selecciona un solo nodo: la raíz de la rama a ordenar.',
+  'Select at least {n} nodes first (Select tool, drag a box or Shift+click).': 'Primero selecciona al menos {n} nodos (herramienta Seleccionar/Mover, arrastra un recuadro o Shift+clic).',
   'Tidied {n} nodes.': '{n} nodos ordenados.', 'Curved {n} links.': '{n} enlaces curvados.', 'Straightened {n} links.': '{n} enlaces enderezados.',
   'Offense': 'Ataque', 'Defense': 'Defensa', 'Magic': 'Magia', 'Gathering & trade': 'Recolección y comercio', 'Crafting': 'Artesanía',
   'Mobility & stealth': 'Movilidad y sigilo', 'Other / empty': 'Otro / vacío', 'Start': 'Inicio', 'Keystone': 'Nodo clave', 'Several levels': 'Varios niveles',
@@ -804,6 +922,9 @@ Object.assign(ES, {
   'Required nodes (ids, one per line; no link needed)': 'Nodos requeridos (ids, uno por línea; sin enlace)', 'How many of them (0 = all)': 'Cuántos de ellos (0 = todos)',
   'Required node "{id}" does not exist.': 'El nodo requerido "{id}" no existe.',
   'Only the first start node is free': 'Solo el primer nodo de inicio es libre',
+  'Closed until a node opens it': 'Cerrado hasta que un nodo lo abra',
+  'Nobody can use this tree until they own a node that lists it in "Opens trees" (in this or another tree).': 'Nadie puede usar este árbol hasta tener un nodo que lo incluya en "Abre árboles" (en este u otro árbol).',
+  'This tree is closed until a node opens it, but no loaded tree has a node with "{id}" in "Opens trees".': 'Este árbol está cerrado hasta que un nodo lo abra, pero ningún árbol cargado tiene un nodo con "{id}" en "Abre árboles".',
   'Later start nodes must be reached through links (walking or wormholes), not picked directly.': 'Los siguientes inicios deben alcanzarse por enlaces (caminando o por agujeros), no elegirse directamente.',
   'Click A then B: create/remove a link · Shift+click B: keep chaining from B · Right-click: link type (on a link: edit it) · Esc: cancel': 'Clic en A y luego en B: crear/quitar enlace · Shift+clic en B: seguir encadenando desde B · Clic derecho: tipo de enlace (sobre un enlace: editarlo) · Esc: cancelar',
   'Wormhole ↔ wormhole: wormhole link; everything else: normal': 'Agujero ↔ agujero: enlace de agujero; el resto: normal',
@@ -850,6 +971,12 @@ Object.assign(ES, {
   "＋ One more pick at a choice": "＋ Una elección más en…",
   "Limited nodes": "Nodos limitados",
   "Limited connections (choices)": "Conexiones limitadas (elecciones)",
+  "Only choices with a changed limit, a group or extra picks are listed. To list another one, select its origin node and use \"Customize this choice\".": "Solo se listan las elecciones con un límite cambiado, un grupo o picks extra. Para listar otra, selecciona su nodo de origen y usa \"Personalizar esta elección\".",
+  "This node opens a choice: {n} options · pick": "Este nodo abre una elección: {n} opciones · elegir",
+  "Shown in the tree list of choices.": "Se muestra en la lista de elecciones del árbol.",
+  "⚙ Customize this choice": "⚙ Personalizar esta elección",
+  "Default limit (1): hidden from the tree list. Customize it to list it there (limit, group).": "Límite por defecto (1): oculta en la lista del árbol. Personalízala para listarla allí (límite, grupo).",
+  "Choice listed in the tree settings (click empty space).": "Elección listada en los ajustes del árbol (clic en un espacio vacío).",
   "Made with Choice links (Connect, right-click): from that node only one option can be followed. A node can allow one more pick with \"Taking this node raises the limit of\".": "Se crean con conexiones de Elección (Conectar, clic derecho): desde ese nodo solo se puede seguir una opción. Un nodo puede permitir una elección más con «Al cogerlo, sube el límite de».",
   "{n} options · pick {k}": "{n} opciones · elige {k}",
   "(+{b} with {who})": "(+{b} con {who})",
@@ -958,14 +1085,14 @@ const gameId = (ns, name) => (ns + '_' + name).toLowerCase().replace(/[^a-z0-9_]
 
 function newNode(id, x, y, props = {}) {
   return Object.assign({
-    id, x, y, title: 'Node', description: [], icon: 'minecraft:paper', shape: 'small', kind: 'normal',
+    id, x, y, title: 'Node', description: [], icon: 'minecraft:paper', shape: 'small', form: 'circle', kind: 'normal',
     require: 2, cost: 1, color: '', requires_advancements: [], attributes: [], commands: [], refund_commands: [],
     start: false, max_level: 1, cost_step: 0, requires_prev_level: 1, requires_items: [], requires_attributes: [], recipes: [], unlock_commands: [],
     click_recipes: [], unlock_trees: [], group: '', group_bonus: {}, requires_nodes: [], requires_count: 0, free_choice_if: [], cap_level: 0, cap_nodes: [], cap_count: 0,
   }, JSON.parse(JSON.stringify(props)), { id, x, y });
 }
 const cloneProps = n => JSON.parse(JSON.stringify({
-  title: n.title, description: n.description, icon: n.icon, shape: n.shape, kind: n.kind, require: n.require,
+  title: n.title, description: n.description, icon: n.icon, shape: n.shape, form: n.form, kind: n.kind, require: n.require,
   cost: n.cost, color: n.color, requires_advancements: n.requires_advancements, attributes: n.attributes,
   commands: n.commands, refund_commands: n.refund_commands, start: n.start, max_level: n.max_level, cost_step: n.cost_step,
   requires_prev_level: n.requires_prev_level, requires_items: n.requires_items, requires_attributes: n.requires_attributes, recipes: n.recipes, unlock_commands: n.unlock_commands,
@@ -975,7 +1102,7 @@ const cloneProps = n => JSON.parse(JSON.stringify({
 
 function makeTree(ns, name, title) {
   return { id: gameId(ns, name), ns, name, title: title || name, icon: 'minecraft:nether_star',
-    background: 'minecraft:textures/gui/advancements/backgrounds/stone.png', exclusive_group: '', group_limits: {}, choice_groups: {}, choice_limits: {}, first_start_only: false,
+    background: 'minecraft:textures/gui/advancements/backgrounds/stone.png', exclusive_group: '', group_limits: {}, choice_groups: {}, choice_limits: {}, first_start_only: false, requires_unlock: false,
     nodes: new Map(), links: new Map(), dirty: false, history: [], future: [], handle: null, dirHandle: null };
 }
 
@@ -985,6 +1112,7 @@ function treeFromJSON(json, ns, name) {
   t.background = json.background || t.background;
   t.exclusive_group = (json.exclusive_group || '').trim();
   t.first_start_only = !!json.first_start_only;
+  t.requires_unlock = !!json.requires_unlock;
   t.group_limits = Object.assign({}, json.group_limits || {});
   t.choice_groups = Object.assign({}, json.choice_groups || {});
   t.choice_limits = Object.assign({}, json.choice_limits || {});
@@ -998,6 +1126,7 @@ function treeFromJSON(json, ns, name) {
     n.description = raw.description || [];
     n.icon = raw.icon || n.icon;
     n.shape = { notable: 'medium', keystone: 'large' }[raw.shape] || raw.shape || (raw.start ? 'large' : 'small');
+    n.form = ['square', 'diamond', 'star'].includes(raw.form) ? raw.form : 'circle';
     n.kind = raw.kind === 'and' ? 'and' : 'normal';   // old "wormhole" nodes are normal: a long link already looks like a portal
     n.require = raw.require ?? 2;
     n.cost = raw.cost ?? 1;
@@ -1037,6 +1166,7 @@ function treeFromJSON(json, ns, name) {
 function treeToJSON(t) {
   const nodes = [...t.nodes.values()].map(n => {
     const o = { id: n.id, x: round1(n.x), y: round1(n.y), title: n.title, description: n.description, icon: n.icon, shape: n.shape, start: !!n.start };
+    if (n.form && n.form !== 'circle') o.form = n.form;
     if (n.kind !== 'normal') o.kind = n.kind;
     if (n.kind === 'and') o.require = n.require;
     o.cost = n.cost;
@@ -1062,7 +1192,7 @@ function treeToJSON(t) {
     return o;
   });
   const links = [...t.links.values()].map(l => (l.min_level > 0 ? [l.from, l.to, l.type, l.curve || 0, l.min_level] : l.curve ? [l.from, l.to, l.type, l.curve] : l.type === 'normal' ? [l.from, l.to] : [l.from, l.to, l.type]));
-  return { title: t.title, icon: t.icon, background: t.background, ...(t.exclusive_group ? { exclusive_group: t.exclusive_group } : {}), ...(Object.keys(t.group_limits || {}).length ? { group_limits: t.group_limits } : {}), ...(choiceGroupsOut(t)), ...(t.first_start_only ? { first_start_only: true } : {}), nodes, links };
+  return { title: t.title, icon: t.icon, background: t.background, ...(t.exclusive_group ? { exclusive_group: t.exclusive_group } : {}), ...(Object.keys(t.group_limits || {}).length ? { group_limits: t.group_limits } : {}), ...(choiceGroupsOut(t)), ...(t.requires_unlock ? { requires_unlock: true } : {}), ...(t.first_start_only ? { first_start_only: true } : {}), nodes, links };
 }
 const round1 = v => Math.round(v * 10) / 10;
 const treeJSONText = t => JSON.stringify(treeToJSON(t), null, 2) + '\n';
@@ -1129,6 +1259,10 @@ function choiceForks(t) {
   for (const l of t.links.values()) if (l.type === 'choice') (m.get(l.from) || m.set(l.from, []).get(l.from)).push(l.to);
   return [...m].map(([id, opts]) => ({ id, title: t.nodes.get(id)?.title || id, options: opts, group: (t.choice_groups || {})[id] || '', limit: (t.choice_limits || {})[id] ?? 1,
     bonus: [...t.nodes.values()].filter(n => (n.group_bonus || {})['choice:' + id]).map(n => [n.title, n.group_bonus['choice:' + id]]) }));
+}
+/** Choices shown in the tree settings list: limit other than 1, a choice group, extra picks, or pinned from the node inspector. */
+function listedForks(t) {
+  return choiceForks(t).filter(f => f.limit !== 1 || f.group || f.bonus.length || (t.cl_pinned && t.cl_pinned.has(f.id)));
 }
 const hasPortal = (t, id) => [...t.links.values()].some(l => (l.from === id || l.to === id) && linkLook(t, l) === 'portal');
 function removeNode(t, id) {
@@ -1446,6 +1580,7 @@ function resetHistory(t) { t.history = [snapshot(t)]; t.future = []; }
 function commit() {
   const t = S.cur;
   if (!t) return;
+  if (S.mirrorJob) { const job = S.mirrorJob; S.mirrorJob = null; try { job(); } catch (e) { console.error(e); } }
   t.history.push(snapshot(t));
   if (t.history.length > 250) t.history.shift();
   t.future.length = 0;
@@ -1456,7 +1591,7 @@ function commit() {
 function restore(t, text) {
   const n = treeFromJSON(JSON.parse(text), t.ns, t.name);
   t.title = n.title; t.icon = n.icon; t.background = n.background; t.nodes = n.nodes; t.links = n.links;
-  t.exclusive_group = n.exclusive_group; t.group_limits = n.group_limits; t.choice_groups = n.choice_groups; t.choice_limits = n.choice_limits; t.first_start_only = n.first_start_only;
+  t.exclusive_group = n.exclusive_group; t.group_limits = n.group_limits; t.choice_groups = n.choice_groups; t.choice_limits = n.choice_limits; t.first_start_only = n.first_start_only; t.requires_unlock = n.requires_unlock;
   for (const id of [...S.sel]) if (!t.nodes.has(id)) S.sel.delete(id);
   t.dirty = true;
   UI.refreshAll();
@@ -1500,12 +1635,28 @@ function nodeAt(t, x, y, exclude) {
   }
   return null;
 }
+/** Node within `tol` of (x,y). Mirrored copies are looked up with some tolerance, because positions are rounded when saved. */
+const MIRROR_TOL = 3;
+function nodeNear(t, x, y, exclude, tol = MIRROR_TOL) {
+  let best = null, bd = tol * tol;
+  for (const n of t.nodes.values()) {
+    if (n === exclude) continue;
+    const dx = n.x - x, dy = n.y - y, d = dx * dx + dy * dy;
+    if (d <= bd) { bd = d; best = n; }
+  }
+  return best;
+}
+/** Is mirror copy k a reflection (bends of curved links turn the other way)? */
+function mirrorIsReflection(k) {
+  const m = $('#mirror').value;
+  return m === 'x' || m === 'y' || (m === 'xy' && k !== 3);
+}
 /** Symmetric counterparts of n: [{k, node}] (excluding n, no repeats). */
 function counterparts(t, n) {
   const out = [], seen = new Set();
   for (let k = 1; k < mirrorCount(); k++) {
     const [x, y] = mirrorApply(k, n.x, n.y);
-    const m = nodeAt(t, x, y, n);
+    const m = nodeNear(t, x, y, n);
     if (m && !seen.has(m)) { seen.add(m); out.push({ k, node: m }); }
   }
   return out;
@@ -1523,7 +1674,7 @@ function snapPoint(x, y, flip) {
 
 function createNode(t, x, y, template) {
   // size is purely visual; what a node does (attributes, commands, recipes...) is chosen in the inspector
-  const props = template ? cloneProps(template) : { shape: $('#newShape').value, kind: $('#newKind').value, start: $('#newStart').checked };
+  const props = template ? cloneProps(template) : { shape: $('#newShape').value, kind: $('#newKind').value, start: $('#newStart').checked, form: (typeof addState !== 'undefined' && addState.form) || 'circle' };
   if (!template) {
     props.cost = 1;
     props.title = props.start ? _('Start') : _('Node');
@@ -1548,7 +1699,7 @@ function addNodeMirrored(t, x, y, chainFrom) {
     const m = createNode(t, qx, qy, template || primary);
     if (chainFrom) {
       const [fx, fy] = mirrorApply(k, chainFrom.x, chainFrom.y);
-      const fm = nodeAt(t, fx, fy, m);
+      const fm = nodeNear(t, fx, fy, m);
       if (fm) t.links.set(linkKey(fm.id, m.id), { from: fm.id, to: m.id, type: 'normal' });
     }
   }
@@ -1576,7 +1727,7 @@ function toggleLinkMirrored(t, a, b) {
   apply(a, b);
   for (let k = 1; k < mirrorCount(); k++) {
     const [ax, ay] = mirrorApply(k, a.x, a.y), [bx, by] = mirrorApply(k, b.x, b.y);
-    const ma = nodeAt(t, ax, ay), mb = nodeAt(t, bx, by);
+    const ma = nodeNear(t, ax, ay), mb = nodeNear(t, bx, by);
     if (ma && mb && ma !== mb) apply(ma, mb);
   }
   return true;
@@ -1640,7 +1791,7 @@ function canTake(t, n, lv) {
     const o = l.from === n.id ? l.to : l.from;
     if ((lv.get(o) || 0) >= Math.max(min, l.min_level || 0)) c++;
   }
-  return c >= (n.kind === 'and' ? n.require : 1);
+  return c >= (n.kind === 'and' ? (n.require > 0 ? n.require : Math.max(1, incoming(t, n.id).size)) : 1);
 }
 function validSet(t, ids) {
   const ok = new Map();   // assumes every node is levelled to its max_level
@@ -1681,6 +1832,11 @@ function validateTree(t) {
   const add = (sev, msg, node) => P.push({ sev, msg, node });
   const nodes = [...t.nodes.values()];
   if (!nodes.length) add('warn', _('The tree has no nodes.'));
+  if (t.requires_unlock) {
+    const id = gameId(t.ns, t.name);
+    const opens = S.trees.some(x => [...x.nodes.values()].some(n => (n.unlock_trees || []).some(u => u === id || (t.exclusive_group && u === '#' + t.exclusive_group))));
+    if (!opens) add('info', _('This tree is closed until a node opens it, but no loaded tree has a node with "{id}" in "Opens trees".', { id }));
+  }
   if (nodes.length && !nodes.some(n => n.start)) add('error', _('There is no start node: nobody will be able to take the first node. Tick "Start node" on at least one node.'));
 
   const reach = validSet(t, new Set(t.nodes.keys()));
@@ -1713,7 +1869,7 @@ function validateTree(t) {
     }
     for (const c of n.unlock_commands) if (c.startsWith('/')) add('info', _('Unlocked command with a leading "/" in {id}: the slash is ignored.', { id: n.id }), n.id);
     if (n.cost < 0) add('error', _('"{title}" ({id}) has a negative cost.', { title: n.title, id: n.id }), n.id);
-    if (n.kind === 'and' && incoming(t, n.id).size < n.require) add('error', _('"{title}" ({id}) requires {req} neighbors but only has {have} incoming links.', { title: n.title, id: n.id, req: n.require, have: incoming(t, n.id).size }), n.id);
+    if (n.kind === 'and' && n.require > 0 && incoming(t, n.id).size < n.require) add('error', _('"{title}" ({id}) requires {req} neighbors but only has {have} incoming links.', { title: n.title, id: n.id, req: n.require, have: incoming(t, n.id).size }), n.id);
     if (!/^[a-z0-9_.:\/-]+$/.test(n.icon) || !n.icon.includes(':')) add('warn', _('Doubtful icon format in {id}: "{icon}" (use mod:item).', { id: n.id, icon: n.icon }), n.id);
     if (S.tex.size && !S.tex.has(n.icon) && !n.icon.startsWith('minecraft:')) add('info', _('Icon "{icon}" ({id}) is not in the loaded textures.', { icon: n.icon, id: n.id }), n.id);
     for (const a of n.attributes) {
@@ -1733,6 +1889,115 @@ function validateTree(t) {
   for (const l of t.links.values()) {
   }
   return P;
+}
+
+
+/* ---------- mirror: keeping the copies in step ----------
+   Any tool that moves or bends the selection calls armMirror(nodes) first. It remembers which
+   node is the mirrored copy of which (while they still line up) and, when the tool commits,
+   moves the copies to the mirrored new positions and copies the bends of the links. */
+function armMirror(nodes) {
+  const t = S.cur; S.mirrorJob = null;
+  if (!t || mirrorCount() < 2 || !nodes || !nodes.length) return;
+  const sel = new Set(nodes), pairs = [], lostIds = new Set();
+  for (const n of nodes) for (let k = 1; k < mirrorCount(); k++) {
+    const [x, y] = mirrorApply(k, n.x, n.y), m = nodeNear(t, x, y, n);
+    if (!m) lostIds.add(n.id); else if (!sel.has(m)) pairs.push({ n, k, m });
+  }
+  const lpairs = [];
+  for (const l of t.links.values()) {
+    const a = t.nodes.get(l.from), b = t.nodes.get(l.to);
+    if (!a || !b || (!sel.has(a) && !sel.has(b))) continue;
+    for (let k = 1; k < mirrorCount(); k++) {
+      const pa = mirrorApply(k, a.x, a.y), pb = mirrorApply(k, b.x, b.y);
+      const ma = nodeNear(t, pa[0], pa[1]), mb = nodeNear(t, pb[0], pb[1]);
+      if (!ma || !mb || ma === mb || sel.has(ma) && sel.has(mb)) continue;
+      const ml = t.links.get(linkKey(ma.id, mb.id));
+      if (ml && ml !== l) lpairs.push({ l, ml, sign: (mirrorIsReflection(k) ? -1 : 1) * (ml.from === ma.id ? 1 : -1) });
+    }
+  }
+  S.mirrorJob = () => {
+    for (const { n, k, m } of pairs) { const [x, y] = mirrorApply(k, n.x, n.y); m.x = Math.round(x * 10) / 10; m.y = Math.round(y * 10) / 10; }
+    for (const { l, ml, sign } of lpairs) { if (l.curve) ml.curve = l.curve * sign; else delete ml.curve; }
+    if (lostIds.size) toast(_('Mirror: {n} mirrored copies were not found, so they did not move. Use "Repair mirror" or check the status bar.', { n: lostIds.size }));
+  };
+}
+/** Nodes that have no mirrored copy at one of the mirror positions (fast: spatial hash). */
+function mirrorOrphans(t) {
+  if (!t || mirrorCount() < 2) return [];
+  const cell = 8, grid = new Map(), key = (x, y) => Math.floor(x / cell) + ',' + Math.floor(y / cell);
+  for (const n of t.nodes.values()) { const k = key(n.x, n.y); (grid.get(k) || grid.set(k, []).get(k)).push(n); }
+  const near = (x, y, self) => {
+    const cx = Math.floor(x / cell), cy = Math.floor(y / cell);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const m of grid.get((cx + i) + ',' + (cy + j)) || [])
+      if (m !== self && Math.hypot(m.x - x, m.y - y) <= MIRROR_TOL) return true;
+    return false;
+  };
+  const out = [];
+  for (const n of t.nodes.values()) {
+    if (Math.hypot(n.x, n.y) < 0.5) continue;   // the centre is its own copy
+    for (let k = 1; k < mirrorCount(); k++) { const [x, y] = mirrorApply(k, n.x, n.y); if (Math.hypot(x - n.x, y - n.y) > MIRROR_TOL && !near(x, y, n)) { out.push(n); break; } }
+  }
+  return out;
+}
+/** Id shape shared by mirrored copies made by tools/scripts: "soldier_b0t" ~ "mage_b0t". Tries shorter tails. */
+function idTails(id) { const p = id.split('_'), out = []; for (let i = 1; i < Math.min(p.length, 4); i++) out.push(p.slice(i).join('_')); return out; }
+/** Moves the mirrored copies of the selected nodes back to the mirrored positions.
+ *  Copies are found by position, or by id (same name after the class prefix) when they drifted away. */
+function repairMirror() {
+  const t = S.cur;
+  if (!t || mirrorCount() < 2) return toast(_('Turn on Mirror first.'));
+  const ns = selNodes();
+  if (!ns.length) return toast(_('Select the nodes whose position is correct (e.g. one whole class) first.'));
+  const sel = new Set(ns), used = new Set(), byTail = new Map();
+  for (const m of t.nodes.values()) if (!sel.has(m)) for (const tl of idTails(m.id)) (byTail.get(tl) || byTail.set(tl, []).get(tl)).push(m);
+  let moved = 0;
+  for (const n of ns) for (let k = 1; k < mirrorCount(); k++) {
+    const [x, y] = mirrorApply(k, n.x, n.y);
+    let m = nodeNear(t, x, y, n);
+    if (!m) {
+      const lim = Math.max(300, 0.35 * Math.hypot(n.x, n.y));
+      for (const tl of idTails(n.id)) {
+        let best = null, bd = lim;
+        for (const c of byTail.get(tl) || []) { if (used.has(c)) continue; const d = Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = c; } }
+        if (best) { m = best; break; }
+      }
+    }
+    if (!m || sel.has(m)) continue;
+    used.add(m);
+    if (Math.hypot(m.x - x, m.y - y) > 0.05) { m.x = Math.round(x * 10) / 10; m.y = Math.round(y * 10) / 10; moved++; }
+  }
+  armMirror(ns);   // bends of the links follow too
+  commit();
+  toast(_('Mirror repaired: {n} copies moved.', { n: moved }));
+}
+/** With Mirror on: gives freshly created nodes (ids) their mirrored copies, with the links between them
+ *  and to existing nodes whose mirror exists. Returns the new copies. */
+function replicateMirrored(t, ids) {
+  if (mirrorCount() < 2 || !ids.length) return [];
+  const made = [], fresh = new Set(ids);
+  for (let k = 1; k < mirrorCount(); k++) {
+    const map = new Map();
+    for (const id of ids) {
+      const n = t.nodes.get(id), [x, y] = mirrorApply(k, n.x, n.y);
+      if (nodeNear(t, x, y, n)) continue;
+      const c = newNode(freshId(t), Math.round(x * 10) / 10, Math.round(y * 10) / 10, cloneProps(n));
+      c.start = n.start; t.nodes.set(c.id, c); map.set(id, c.id); made.push(c.id);
+    }
+    for (const l of [...t.links.values()]) {
+      if (!fresh.has(l.from) && !fresh.has(l.to)) continue;
+      const pick = id => {
+        if (map.has(id)) return map.get(id);
+        const o = t.nodes.get(id), [x, y] = mirrorApply(k, o.x, o.y), m = nodeNear(t, x, y);
+        return m ? m.id : null;
+      };
+      const a = pick(l.from), b = pick(l.to);
+      if (!a || !b || a === b || t.links.has(linkKey(a, b))) continue;
+      const nl = Object.assign({}, l, { from: a, to: b }); if (nl.curve && mirrorIsReflection(k)) nl.curve = -nl.curve;
+      t.links.set(linkKey(a, b), nl);
+    }
+  }
+  return made;
 }
 
 /* ============================================================
@@ -1792,7 +2057,7 @@ function drawNode(n, z, selected, hovered) {
   }
   if (n.kind === 'and') {
     ctx.fillStyle = '#ffe97a'; ctx.font = `bold ${Math.round(r * 0.7)}px system-ui,sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText('&' + n.require, r * 0.35, r * 0.95);
+    ctx.fillText('&' + (n.require > 0 ? n.require : '∀'), r * 0.35, r * 0.95);
   }
   if (S.searchQ && S.srch.has(n.id)) {   // search hit: bright ring
     ctx.strokeStyle = '#ffe97a'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(0, 0, frameRadius(n) + 7, 0, 7); ctx.stroke();
@@ -1953,7 +2218,7 @@ function draw() {
       for (let k = 0; k < mm; k++) {
         const [qx, qy] = mirrorApply(k, gx, gy);
         const tpl = $('#copySel').checked && S.sel.size === 1 ? S.cur.nodes.get([...S.sel][0]) : null;
-        const g = tpl ? { shape: tpl.shape, kind: tpl.kind, group: tpl.group } : { shape: $('#newShape').value, kind: $('#newKind').value, group: '' };
+        const g = tpl ? { shape: tpl.shape, kind: tpl.kind, group: tpl.group, form: tpl.form } : { shape: $('#newShape').value, kind: $('#newKind').value, group: '', form: addState.form || 'circle' };
         ctx.save(); ctx.translate(qx, qy); drawFrame(g, RADIUS[g.shape], k === 0 ? (tpl ? nodeColor(tpl) : addColor()) : '#6aa9ff'); ctx.restore();
       }
       ctx.globalAlpha = 1;
@@ -1998,6 +2263,10 @@ cv.addEventListener('pointerdown', e => {
     }
     if (e.button === 1 && hit) { e.preventDefault(); deleteNodeMirrored(t, hit.id); S.sel.delete(hit.id); commit(); return; }   // middle-click: delete
   }
+  if (S.tool === 'select' && e.button === 2 && hit && !spaceDown) {   // right-click a node: small menu (delete / duplicate)
+    if (!S.sel.has(hit.id)) { S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw(); }
+    openNodeMenu(e.clientX, e.clientY); return;
+  }
   const panNow = e.button === 1 || e.button === 2 || spaceDown;
   if (panNow || (S.tool === 'view' && e.button === 0)) {
     drag = { type: 'pan', sx, sy, vx: S.view.x, vy: S.view.y, click: S.tool === 'view' && e.button === 0 ? (hit ? hit.id : '') : null, shift: e.shiftKey, moved: false };
@@ -2028,15 +2297,17 @@ cv.addEventListener('pointerdown', e => {
     if (linkFrom && linkFrom !== hit.id && t.nodes.has(linkFrom)) {
       if (toggleLinkMirrored(t, t.nodes.get(linkFrom), hit)) commit();
       // the chain only continues with Shift held: B becomes the next A; otherwise start over
-      linkFrom = e.shiftKey ? hit.id : null; S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw(); return;
+      // modes (right-click menu): static keeps A as the origin; continuous (or Shift) moves on to B
+      const mode = S.linkMode || 'normal';
+      if (mode === 'static' && !e.shiftKey) { S.sel = new Set([linkFrom]); UI.refreshInspector(); requestDraw(); return; }
+      linkFrom = e.shiftKey || mode === 'chain' ? hit.id : null; S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw(); return;
     }
     linkFrom = linkFrom === hit.id ? null : hit.id; S.sel = new Set([hit.id]); UI.refreshInspector(); requestDraw();
-  } else if (S.tool === 'delete') {
-    if (hit) { deleteNodeMirrored(t, hit.id); commit(); }
   } else if (S.tool === 'bend') {
     const l = linkAt(t, wx, wy, 12 / S.view.z);
     if (!l) { drag = { type: 'pan', sx, sy, vx: S.view.x, vy: S.view.y }; return; }
     if (e.shiftKey) { l.curve = 0; commit(); return; }   // Shift+click: straight again
+    armMirror([t.nodes.get(l.from), t.nodes.get(l.to)].filter(Boolean));   // mirrored links bend the same way
     drag = { type: 'bend', link: l, moved: false };
   }
 });
@@ -2108,10 +2379,9 @@ cv.addEventListener('wheel', e => {
 }, { passive: false });
 
 const toolHint = name => ({
-  select: _('Click: select · Drag: move (with mirror) · Shift: extend selection · Drag on empty space: box select'),
+  select: _('Click: select · Drag: move (with mirror) · Shift: extend selection · Drag on empty space: box select · Right-click a node: delete / duplicate · Del: delete'),
   add: _('Click: add node · Right-click node: select · Right-click empty: choose type and color · Middle-click node: delete · Shift+click: add and link to the selected node · Ctrl: flip snapping'),
-  link: _('Click A then B: create/remove a link · Shift+click B: keep chaining from B · Right-click: link type (on a link: edit it) · Esc: cancel'),
-  delete: _('Click a node to delete it (and its mirrored copies when mirror is on)'),
+  link: _('Click A then B: create/remove a link · Shift+click B: keep chaining from B · Right-click: link type and connect mode (normal / continuous / static) · Esc: cancel'),
   bend: _('Curve links: drag a link to bend it · Shift+click: straight again'),
   view: _('Preview: nothing can be moved by accident · Hover a node to see what it gives · Click: inspect · Shift+click: select several · Drag: move the view'),
 }[name]);
@@ -2119,7 +2389,7 @@ function setTool(name) {
   S.tool = name; linkFrom = null;
   $$('#toolBtns button').forEach(b => b.classList.toggle('on', b.dataset.tool === name));
   hideNodeTip();
-  cv.style.cursor = { bend: 'pointer', view: 'grab', select: 'default', add: 'crosshair', link: 'cell', delete: 'not-allowed' }[name];
+  cv.style.cursor = { bend: 'pointer', view: 'grab', select: 'default', add: 'crosshair', link: 'cell' }[name];
   $('#hint').textContent = toolHint(name);
   if (typeof updateAddBar === 'function') updateAddBar();
   requestDraw();
@@ -2132,10 +2402,11 @@ window.addEventListener('keydown', e => {
   const ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
   if (ctrl && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (ctrl && k === 'y') { e.preventDefault(); redo(); return; }
+  if (ctrl && k === 'd' && S.cur && S.sel.size) { e.preventDefault(); duplicateSelection(); return; }
   if (ctrl && k === 's') { e.preventDefault(); UI.save(); return; }
   if (ctrl && k === 'a' && S.cur) { e.preventDefault(); S.sel = new Set(S.cur.nodes.keys()); UI.refreshInspector(); requestDraw(); return; }
   if (ctrl) return;
-  const tool = { b: 'bend', p: 'view', v: 'select', a: 'add', l: 'link', x: 'delete' }[k];
+  const tool = { b: 'bend', p: 'view', v: 'select', a: 'add', l: 'link' }[k];
   if (tool) { setTool(tool); return; }
   const t = S.cur;
   if (!t) return;
@@ -2211,6 +2482,25 @@ function showNodeTip(n, sx, sy) {
 }
 function hideNodeTip() { const tip = document.getElementById('nodeTip'); if (tip) tip.hidden = true; tipFor = null; }
 
+
+/* ---------- right-click menu of a node (Select/Move tool) ---------- */
+function openNodeMenu(cx, cy) {
+  const m = $('#nodeMenu'); m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.min(cx, innerWidth - w - 8) + 'px'; m.style.top = Math.min(cy, innerHeight - h - 8) + 'px';
+}
+function closeNodeMenu() { $('#nodeMenu').hidden = true; }
+$('#nodeMenu').addEventListener('contextmenu', e => e.preventDefault());
+$('#nmDup').onclick = () => { closeNodeMenu(); duplicateSelection(); };
+$('#nmDel').onclick = () => {
+  closeNodeMenu();
+  const t = S.cur; if (!t || !S.sel.size) return;
+  for (const id of [...S.sel]) if (t.nodes.has(id)) deleteNodeMirrored(t, id);
+  S.sel.clear(); commit();
+};
+window.addEventListener('pointerdown', e => { if (!$('#nodeMenu').hidden && !e.target.closest('#nodeMenu')) closeNodeMenu(); }, true);
+window.addEventListener('keydown', e => { if (e.key === 'Escape') closeNodeMenu(); });
+
 /* ============================================================
    UI: tabs, inspector, files (zip / folder / drop), dialogs, startup
    ============================================================ */
@@ -2233,6 +2523,9 @@ const UI = {
     const dirty = S.trees.some(x => x.dirty) || S.deleted.length;
     $('#stSave').textContent = dirty ? _('● unsaved changes') : _('✓ all saved');
     $('#stSave').style.color = dirty ? 'var(--warn)' : 'var(--ok)';
+    const orph = mirrorOrphans(t), mb = $('#stMirror');
+    mb.hidden = !orph.length;
+    if (orph.length) { mb.textContent = '⚠ ' + _('Mirror: {n} nodes have no mirrored copy', { n: orph.length }); mb.title = _('Click to select them'); mb.onclick = () => { S.sel = new Set(orph.map(n => n.id)); UI.refreshInspector(); requestDraw(); }; }
     $('#stMode').textContent = S.root ? _('Folder: {name}', { name: S.root.name }) : (HAS_FS ? _('No folder open') : _('File mode (this browser cannot write to folders)'));
     $('#fileInfo').textContent = t ? _('in-game id: {id}', { id: gameId(t.ns, t.name) }) : '';
     $('#welcome').innerHTML = t && t.nodes.size ? '' : `<div style="font-size:18px;color:#c8ccd8">${esc(_('Empty tree'))}</div>${esc(_('Pick Add (A) and click to place nodes, or open your datapack.'))}`;
@@ -2268,7 +2561,7 @@ function renderInspector() {
   const nodes = selNodes();
   if (!nodes.length) {
     el.innerHTML = `
-      <h3>${esc(_('Tree'))}</h3>
+      <h3>${esc(_('Skilltree'))}</h3>
       ${lab('Title (tab)')}<input data-tf="title" value="${esc(t.title)}">
       <div class="row"><div>${lab('Namespace')}<input data-tf="ns" value="${esc(t.ns)}" ${t.handle ? 'disabled' : ''}></div>
       <div>${lab('File')}<input data-tf="name" value="${esc(t.name)}" ${t.handle ? 'disabled' : ''}></div></div>
@@ -2288,15 +2581,18 @@ function renderInspector() {
       }).join('')}</div>
       <button id="glAdd" style="margin-top:4px">${esc(_('＋ Add group'))}</button>
       </details>
-      <details class="sec" data-sk="gl-links" ${secOpen.has('gl-links') ? 'open' : ''}><summary>${esc(_('Limited connections (choices)'))} · ${choiceForks(t).length}</summary>
+      <details class="sec" data-sk="gl-links" ${secOpen.has('gl-links') ? 'open' : ''}><summary>${esc(_('Limited connections (choices)'))} · ${listedForks(t).length}/${choiceForks(t).length}</summary>
       <div class="muted small" style="margin-bottom:4px">${esc(_('Additional settings for "Choice Nodes": here you can see all the "Choice Nodes" you have in total and group them.'))}<br>${esc(_('This makes it easier to add an extra "decision" to several "Choice Nodes" at once.'))}</div>
-      ${(() => { const fs = choiceForks(t); return fs.length ? fs.map(f => `<div class="cg-fork"><div class="row small"><span class="choice-dot"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.title)}</span><span class="muted" style="white-space:nowrap;flex:none">${esc(_('{n} options', { n: f.options.length }))} · ${esc(_('pick'))}</span><input class="fixed cl-num" type="number" min="0" data-cl="${esc(f.id)}" value="${f.limit}" title="${esc(_('How many options can be taken (0 = locked until a node opens it)'))}"><span class="muted">${f.limit === 0 ? ' 🔒' : ''}${f.bonus.length ? ' ' + esc(_('(+{b} with {who})', { b: f.bonus.reduce((s, x) => s + x[1], 0), who: f.bonus.map(x => x[0]).join(', ') })) : ''}</span></div>
+      <div class="muted small" style="margin-bottom:4px">${esc(_('Only choices with a changed limit, a group or extra picks are listed. To list another one, select its origin node and use "Customize this choice".'))}</div>
+      ${(() => { const fs = listedForks(t); return fs.length ? fs.map(f => `<div class="cg-fork"><div class="row small"><span class="choice-dot"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.title)}</span><span class="muted" style="white-space:nowrap;flex:none">${esc(_('{n} options', { n: f.options.length }))} · ${esc(_('pick'))}</span><input class="fixed cl-num" type="number" min="0" data-cl="${esc(f.id)}" value="${f.limit}" title="${esc(_('How many options can be taken (0 = locked until a node opens it)'))}"><span class="muted">${f.limit === 0 ? ' 🔒' : ''}${f.bonus.length ? ' ' + esc(_('(+{b} with {who})', { b: f.bonus.reduce((s, x) => s + x[1], 0), who: f.bonus.map(x => x[0]).join(', ') })) : ''}</span></div>
           <div class="row small cg-row"><span class="muted fixed">${esc(_('Choice group'))}</span><input data-cg="${esc(f.id)}" list="cgList" placeholder="${esc(_('none'))}" value="${esc(f.group)}"></div></div>`).join('')
           + `<datalist id="cgList">${choiceGroupIds(t).map(g => `<option value="${esc(g)}">`).join('')}</datalist>`
           + (() => { const gs = choiceGroupIds(t); return gs.length ? `<div class="gl-sub">${esc(_('Choice groups'))}</div>` + gs.map(g => { const fk = fs.filter(f => f.group === g), who = [...t.nodes.values()].filter(n => (n.group_bonus || {})['choices:' + g]);
               return `<div class="muted small">◆ <b>${esc(g)}</b>: ${esc(fk.map(f => f.title).join(', '))} · ${esc(who.length ? _('+{b} shared with {who}', { b: who.reduce((s, n) => s + n.group_bonus['choices:' + g], 0), who: who.map(n => n.title).join(', ') }) : _('no node gives extra picks yet'))}</div>`; }).join('') : ''; })()
         : `<div class="muted small">${esc(_('No choices yet.'))}</div>`; })()}
       </details>
+      <label class="chk" style="margin-top:10px"><input type="checkbox" data-tf="requires_unlock" ${t.requires_unlock ? 'checked' : ''}> <span>${esc(_('Closed until a node opens it'))}</span></label>
+      <div class="muted small" style="margin-top:3px">${esc(_('Nobody can use this tree until they own a node that lists it in "Opens trees" (in this or another tree).'))}</div>
       <label class="chk" style="margin-top:10px"><input type="checkbox" data-tf="first_start_only" ${t.first_start_only ? 'checked' : ''}> <span>${esc(_('Only the first start node is free'))}</span></label>
       <div class="muted small" style="margin-top:3px">${esc(_('Later start nodes must be reached through links (walking or portals), not picked directly.'))}</div>
       <div class="group" style="margin-top:16px"><h3>${esc(_('Summary'))}</h3>
@@ -2318,12 +2614,13 @@ function renderInspector() {
     <div class="row">${iconPrev(v('icon'))}<input data-f="icon" list="itemList" value="${val('icon')}" ${ph('icon')}></div>
     <div class="row"><div>${lab('Size (visual only)')}<select data-f="shape">${opts({ small: _('Small'), medium: _('Medium'), large: _('Large') }, shape)}</select></div>
     <div>${lab('Cost (skill points)')}<input data-f="cost" type="number" min="0" value="${val('cost')}" ${ph('cost')}></div></div>
+    <div class="row"><div>${lab('Shape')}<select data-f="form">${opts({ circle: _('Circle'), square: _('Square'), diamond: _('Diamond'), star: _('Star') }, v('form') || 'circle')}</select></div></div>
     <label style="text-transform:none;display:flex;gap:6px;align-items:center;margin:10px 0 0;color:var(--text)"><input type="checkbox" data-f="start" ${v('start') === true ? 'checked' : ''}> ${esc(_('Start node (the player may begin here, always available)'))}</label>
     <div class="row"><div>${lab('Max level')}<input data-f="max_level" type="number" min="1" value="${val('max_level')}" ${ph('max_level')}></div>
     <div>${lab('Extra cost per level')}<input data-f="cost_step" type="number" value="${val('cost_step')}" ${ph('cost_step')}></div></div>
     <div class="muted small" style="margin-top:3px">${esc(_('Max level above 1: the player can buy this node several times. Attributes are multiplied by the level; level k costs cost + (k-1) × extra.'))}</div>
     <div class="row"><div>${lab('Type')}<select data-f="kind">${opts({ normal: _('Normal'), and: _('AND') }, kind)}</select></div>
-    <div ${kind === 'and' ? '' : 'style="visibility:hidden"'}>${lab('Requires (neighbors)')}<input data-f="require" type="number" min="1" value="${val('require')}"></div></div>
+    <div ${kind === 'and' ? '' : 'style="visibility:hidden"'}>${lab('Requires (neighbors, 0 = all)')}<input data-f="require" type="number" min="0" value="${val('require')}"></div></div>
     <div class="row"><div>${lab('Previous node must be level')}<input data-f="requires_prev_level" type="number" min="1" value="${val('requires_prev_level')}" ${ph('requires_prev_level')}></div></div>
     ${lab('Color')}
     <div class="row"><input type="color" class="fixed" data-f="color" value="${v('color') || '#c9a24a'}"><button class="fixed" id="clearColor">${esc(_('No color'))}</button><span class="muted small">${v('color') ? esc(v('color')) : esc(_('no tint'))}</span></div>
@@ -2344,6 +2641,10 @@ function renderInspector() {
     <div id="gbRowsNode" class="gb-list">${gbRows(one && n0, 'node')}</div>
     ${one && Object.keys(S.cur.group_limits || {}).length ? `<button data-gbadd="node" style="margin-top:4px">${esc(_('＋ Raise a node group'))}</button>` : ''}
     <div class="gl-sub">${esc(_('Limited connections (choices)'))}</div>
+    ${one ? (() => { const f = choiceForks(S.cur).find(x => x.id === n0.id); if (!f) return '';
+      const listed = listedForks(S.cur).some(x => x.id === f.id);
+      return `<div class="row small" style="align-items:center"><span class="choice-dot"></span><span style="flex:1">${esc(_('This node opens a choice: {n} options · pick', { n: f.options.length }))}</span><input class="fixed cl-num" type="number" min="0" data-cl="${esc(f.id)}" value="${f.limit}" title="${esc(_('How many options can be taken (0 = locked until a node opens it)'))}"></div>
+        ${listed ? `<div class="muted small">${esc(_('Shown in the tree list of choices.'))}</div>` : `<button id="clPin" style="margin-top:4px">${esc(_('⚙ Customize this choice'))}</button><div class="muted small">${esc(_('Default limit (1): hidden from the tree list. Customize it to list it there (limit, group).'))}</div>`}`; })() : ''}
     ${one ? (() => { const fs = choiceForks(S.cur).filter(f => f.options.includes(n0.id)); return fs.length ? `<div class="muted small">${esc(_('This node is an option of:'))} ${fs.map(f => esc(f.title) + (f.group ? ' (' + esc(_('group {g}', { g: f.group })) + ')' : '')).join(' · ')}</div>
       ${lab('Free choice if you have (ids, one per line)')}
       <textarea data-f="free_choice_if" data-lines placeholder="mage_mastery">${esc((n0.free_choice_if || []).join('\n'))}</textarea>
@@ -2378,7 +2679,7 @@ function renderInspector() {
     <div class="muted small">${esc(_('Added to the recipe book while the node is taken. Use the recipe type waifing_skilltree:skill_locked so only players with the node can craft it (no gamerule needed).'))}</div>
     ${lab('Right-click recipes unlocked (ids, one per line)')}<textarea data-f="click_recipes" data-lines placeholder="mymod:sharpen_sword">${esc((v('click_recipes') || []).join('\n'))}</textarea>
     <div class="muted small">${esc(_('Defined in data/<namespace>/waifingskilltree/click_recipes/<name>.json. Hold the catalyst on the cursor and right click the target in the inventory.'))}</div>
-    ${lab('Opens trees (exclusive groups)')}<textarea data-f="unlock_trees" data-lines placeholder="waifing_mage&#10;#class">${esc((v('unlock_trees') || []).join('\n'))}</textarea>
+    ${lab('Opens trees (closed or exclusive trees)')}<textarea data-f="unlock_trees" data-lines placeholder="waifing_mage&#10;#class">${esc((v('unlock_trees') || []).join('\n'))}</textarea>
     <div class="muted small">${esc(_('In-game tree ids, or #group for every tree of that group. Lets the player use them even though they chose another tree of the group.'))}</div>
     ${lab('Commands unlocked for the player (one per line, no "/")')}<textarea data-f="unlock_commands" data-lines placeholder="say">${esc((v('unlock_commands') || []).join('\n'))}</textarea>
     <div class="muted small">${esc(_('The player may use these commands while the node is taken (e.g. "say" or "gamemode creative"). Everyone else is blocked from them.'))}</div>
@@ -2564,6 +2865,7 @@ insp.addEventListener('click', e => {
     const g = (ts.find(x => !(x[0] in cur)) || ts[0])[0];
     setField('group_bonus', { ...cur, [g]: (cur[g] || 0) + 1 }, true); renderInspector();
   }
+  else if (b.id === 'clPin') { const id = selNodes()[0].id; (S.cur.cl_pinned ||= new Set()).add(id); renderInspector(); toast(_('Choice listed in the tree settings (click empty space).')); }
   else if (b.dataset.gb === 'del') { b.closest('.gb-row').remove(); readBonusRows(); renderInspector(); }
 });
 insp.addEventListener('change', e => {
@@ -2586,6 +2888,7 @@ insp.addEventListener('change', e => {
     if (f === 'ns') t.ns = sanitizeNs(el.value);
     else if (f === 'name') t.name = sanitizePath(el.value);
     else if (f === 'first_start_only') t.first_start_only = el.checked;
+    else if (f === 'requires_unlock') t.requires_unlock = el.checked;
     else t[f] = el.value;
     if (f === 'ns' || f === 'name') t.id = gameId(t.ns, t.name);
     t.dirty = true; UI.refreshAll(); return;
@@ -2601,7 +2904,7 @@ insp.addEventListener('change', e => {
     else val = el.value;
     if (f === 'max_level' || f === 'requires_prev_level') val = Math.max(1, Math.round(val) || 1);
     if (f === 'cap_level' || f === 'cap_count') val = Math.max(0, Math.round(val) || 0);
-    const structural = f === 'kind' || f === 'shape' || f === 'icon' || f === 'color' || f === 'start';
+    const structural = f === 'kind' || f === 'shape' || f === 'form' || f === 'icon' || f === 'color' || f === 'start';
     setField(f, val, true);
     if (structural) renderInspector();
     return;
@@ -2657,7 +2960,8 @@ function duplicateSelection() {
   if (!src.length) return;
   const map = new Map(), ids = [];
   for (const n of src) { const c = newNode(freshId(t), n.x + 30, n.y + 30, cloneProps(n)); t.nodes.set(c.id, c); map.set(n.id, c.id); ids.push(c.id); }
-  for (const l of [...t.links.values()]) if (map.has(l.from) && map.has(l.to)) { const a = map.get(l.from), b = map.get(l.to); t.links.set(linkKey(a, b), { from: a, to: b, type: l.type }); }
+  for (const l of [...t.links.values()]) if (map.has(l.from) && map.has(l.to)) { const a = map.get(l.from), b = map.get(l.to); t.links.set(linkKey(a, b), Object.assign({}, l, { from: a, to: b })); }
+  replicateMirrored(t, ids);   // with Mirror on the copies appear in every mirrored place too
   S.sel = new Set(ids); commit();
 }
 
@@ -2827,6 +3131,13 @@ window.addEventListener('drop', e => {
 
 /* ---------- saving ---------- */
 async function saveAction() {
+  if (!S.root && HAS_FS && S.trees.length) {      // nothing opened from a folder yet: pick where the unzipped datapack goes
+    let dir;
+    try { dir = await window.showDirectoryPicker({ mode: 'readwrite' }); } catch (e) { return; }
+    S.root = dir; S.rootHasMeta = false;
+    try { await dir.getFileHandle('pack.mcmeta'); S.rootHasMeta = true; } catch (e) { /* new folder */ }
+    S.trees.forEach(t => { t.handle = null; });
+  }
   if (S.root) {
     try { await saveToFolder(); toast(_('Saved into the datapack folder. In game: /reload')); }
     catch (e) { toast(_('Error while saving: {err}', { err: e.message })); }
@@ -3071,6 +3382,24 @@ setTool('view');
 resizeCanvas();
 setLang(LANG);
 
+/* ---------- side panel: every group but "Tool" starts folded; click a heading to open or fold it ---------- */
+(() => {
+  let open = {};
+  try { open = JSON.parse(localStorage.getItem('wst_groups') || '{}'); } catch (e) { open = {}; }
+  $$('#tools .group').forEach((g, i) => {
+    const h = $('h3', g); if (!h) return;
+    const key = h.textContent.trim() || 'g' + i;
+    if (i === 0) return;                       // the Tool group always stays open
+    g.classList.add('foldable');
+    g.classList.toggle('closed', !open[key]);
+    h.addEventListener('click', () => {
+      g.classList.toggle('closed');
+      open[key] = !g.classList.contains('closed');
+      try { localStorage.setItem('wst_groups', JSON.stringify(open)); } catch (e) { /* no storage */ }
+    });
+  });
+})();
+
 /* ============================================================
    View aids (colour modes, shapes, regions, values, minimap),
    curved links and the Arrange tools.
@@ -3179,6 +3508,13 @@ function connTypeMap(t) {
   }
   return m;
 }
+/** Path of a node outline that is not a circle (size s = half-diagonal of the diamond). Same shapes as the game draws. */
+function nodeOutline(g, form, s) {
+  g.beginPath();
+  if (form === 'square') { const k = s * 0.78; g.rect(-k, -k, 2 * k, 2 * k); }
+  else if (form === 'star') { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? s * 0.52 : s * 1.12; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); }
+  else { g.moveTo(0, -s); g.lineTo(s, 0); g.lineTo(0, s); g.lineTo(-s, 0); g.closePath(); }
+}
 function drawFrame(n, r, col, c, conn) {
   if (conn && conn.size && !isKeystone(n)) {
     const order = ['oneway', 'choice', 'portal'], types = order.filter(k => conn.has(k));
@@ -3197,6 +3533,18 @@ function drawFrameMetal(n, r, col, c, type) {
   FX = c || ctx;
   const key = isKeystone(n);
   FX.lineJoin = 'round';
+  if (n.form && n.form !== 'circle') {   // square, diamond or star outline: the same metals as the round frames
+    const d = r * 1.22, m = key ? BRONZE : n.shape === 'small' ? SILVER : GOLD, edge = key ? '#3d1608' : '#3a2a0c';
+    const rh = s2 => nodeOutline(FX, n.form, s2);
+    if (key || n.shape === 'large') { FX.fillStyle = metal(d + 8, m); FX.strokeStyle = edge; FX.lineWidth = 1; spikes(key ? 12 : 4, d * 0.75, d + 9, key ? 0.13 : 0.22, key ? -Math.PI / 2 + Math.PI / 12 : Math.PI / 4); }
+    FX.save(); rh(d - 1.5); FX.clip(); drawCore(d * (n.form === 'star' ? 1.1 : 1), col, n.shape === 'small' ? 0.62 : 0.72); FX.restore();
+    FX.lineJoin = 'miter';
+    FX.strokeStyle = metal(d, m); FX.lineWidth = n.shape === 'small' ? 2.6 : 4.2; rh(d - (n.shape === 'small' ? 0.5 : 1.2)); FX.stroke();
+    FX.strokeStyle = edge; FX.lineWidth = 1; rh(d + 1.2); FX.stroke();
+    if (n.shape !== 'small') { rh(d - 3.6); FX.stroke(); }
+    FX.lineJoin = 'round';
+    return;
+  }
   if (n.shape === 'small' && !key) {
     drawCore(r, col, 0.62);
     FX.strokeStyle = metal(r, SILVER); FX.lineWidth = 2.2; FX.beginPath(); FX.arc(0, 0, r, 0, 7); FX.stroke();
@@ -3428,6 +3776,7 @@ const R1 = v => Math.round(v);
 /** Even circle (orbit) around the centroid, keeping the angular order; links between neighbours follow the circle. */
 function arrangeCircle() {
   const ns = needSel(3); if (!ns) return;
+  armMirror(ns);
   const [cx, cy] = centroid(ns);
   const r = Math.max(step() * ns.length / (2 * Math.PI), ns.reduce((s, n) => s + Math.hypot(n.x - cx, n.y - cy), 0) / ns.length);
   ns.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
@@ -3439,6 +3788,7 @@ function arrangeCircle() {
 /** Arc: keeps the end nodes, puts the rest evenly on the circle through them (bulging away from the centre of the tree). */
 function arrangeArc() {
   const ns = needSel(3); if (!ns) return;
+  armMirror(ns);
   const [a, b] = farthestPair(ns);
   const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
   const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
@@ -3453,6 +3803,47 @@ function arrangeArc() {
   curveSelected(cx, cy, true);
   commit();
 }
+/* ---------- shapes: square / diamond (the same square turned 45°) / star ----------
+   Nodes keep their order around the centre and are spread evenly along the outline, starting at
+   the first corner (the top one for the diamond and the star). A diamond of 8 nodes is a node that
+   splits into two paths of 3 that meet again. */
+let lastSquare = null;   // pressing "Square" again on the same selection turns it into a diamond, and back
+function shapeOutline(kind, cx, cy, R) {
+  const pts = [];
+  if (kind === 'star') for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? R * 0.48 : R; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+  else { const a0 = kind === 'diamond' ? -Math.PI / 2 : -Math.PI * 3 / 4; for (let i = 0; i < 4; i++) { const a = a0 + i * Math.PI / 2; pts.push([cx + Math.cos(a) * R, cy + Math.sin(a) * R]); } }
+  return pts;
+}
+function arrangeShape(kind) {
+  const ns = needSel(4); if (!ns) return;
+  armMirror(ns);
+  const [cx, cy] = centroid(ns), k = ns.length;
+  const unit = shapeOutline(kind, 0, 0, 1);
+  let per1 = 0; for (let i = 0; i < unit.length; i++) per1 += Math.hypot(unit[(i + 1) % unit.length][0] - unit[i][0], unit[(i + 1) % unit.length][1] - unit[i][1]);
+  // size: keep the current spread (mean distance to the centre, compared with the same outline at size 1), so pressing again does not shrink it
+  const unitPts = (() => { const segs1 = unit.map((p, i) => [p, unit[(i + 1) % unit.length]]), l1 = segs1.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1])); const out = [];
+    for (let i = 0; i < k; i++) { let d = per1 * i / k, si = 0; while (d > l1[si] && si < l1.length - 1) { d -= l1[si]; si++; } const [a, b] = segs1[si], f = d / l1[si]; out.push(Math.hypot(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)); } return out.reduce((x, y) => x + y, 0) / k; })();
+  const R = Math.max(step() * k / per1, ns.reduce((a, n) => a + Math.hypot(n.x - cx, n.y - cy), 0) / k / unitPts);
+  const pts = shapeOutline(kind, cx, cy, R), segs = pts.map((p, i) => [p, pts[(i + 1) % pts.length]]);
+  const lens = segs.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1])), per = lens.reduce((a, b) => a + b, 0);
+  const start = Math.atan2(pts[0][1] - cy, pts[0][0] - cx), ang = n => { let a = Math.atan2(n.y - cy, n.x - cx) - start; while (a < 0) a += 2 * Math.PI; return a; };
+  ns.sort((a, b) => ang(a) - ang(b));
+  ns.forEach((n, i) => {
+    let d = per * i / k, si = 0;
+    while (d > lens[si] && si < lens.length - 1) { d -= lens[si]; si++; }
+    const [a, b] = segs[si], f = lens[si] ? d / lens[si] : 0;
+    n.x = R1(a[0] + (b[0] - a[0]) * f); n.y = R1(a[1] + (b[1] - a[1]) * f);
+  });
+  straightenSelected(false);
+  commit();
+}
+function squareOrDiamond() {
+  const key = [...S.sel].sort().join(',');
+  const kind = lastSquare && lastSquare.key === key && lastSquare.kind === 'square' ? 'diamond' : 'square';
+  arrangeShape(kind);
+  lastSquare = { key, kind };
+  const b = $('#arrSquare span'); if (b) b.textContent = kind === 'square' ? _('◇ Diamond') : _('□ Square');
+}
 function farthestPair(ns) {
   let best = [ns[0], ns[1]], bd = -1;
   for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++) {
@@ -3463,20 +3854,30 @@ function farthestPair(ns) {
 /** Straight, evenly spaced line between the two farthest selected nodes. */
 function arrangeLine() {
   const ns = needSel(3); if (!ns) return;
+  armMirror(ns);
   const [a, b] = farthestPair(ns), dx = b.x - a.x, dy = b.y - a.y;
   const order = ns.slice().sort((p, q) => ((p.x - a.x) * dx + (p.y - a.y) * dy) - ((q.x - a.x) * dx + (q.y - a.y) * dy));
   order.forEach((n, i) => { const s = i / (order.length - 1); n.x = R1(a.x + dx * s); n.y = R1(a.y + dy * s); });
   straightenSelected(false);
   commit();
 }
-/** Grid with the spacing of "Step", reading order kept. */
+/** Grid with the spacing of "Step": nodes at a similar height share a row (rows kept), each row evenly spaced and centred. */
 function arrangeGrid() {
   const ns = needSel(2); if (!ns) return;
-  const cols = Math.ceil(Math.sqrt(ns.length)), s = step();
-  const [cx, cy] = centroid(ns);
-  ns.sort((p, q) => (Math.round(p.y / s) - Math.round(q.y / s)) || (p.x - q.x));
-  const rows = Math.ceil(ns.length / cols);
-  ns.forEach((n, i) => { n.x = R1(cx + (i % cols - (cols - 1) / 2) * s); n.y = R1(cy + (Math.floor(i / cols) - (rows - 1) / 2) * s); });
+  armMirror(ns);
+  const s = step(), [cx, cy] = centroid(ns);
+  const sorted = ns.slice().sort((p, q) => p.y - q.y), rows = [];
+  for (const n of sorted) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(n.y - row.y) < s * 0.5) { row.items.push(n); row.y = row.items.reduce((a, m) => a + m.y, 0) / row.items.length; }
+    else rows.push({ y: n.y, items: [n] });
+  }
+  const y0 = cy - (rows.length - 1) / 2 * s;
+  rows.forEach((row, i) => {
+    row.items.sort((p, q) => p.x - q.x);
+    const k = row.items.length, rx = row.items.reduce((a, m) => a + m.x, 0) / k;   // each row stays where it was horizontally
+    row.items.forEach((n, j) => { n.x = R1(rx + (j - (k - 1) / 2) * s); n.y = R1(y0 + i * s); });
+  });
   straightenSelected(false);
   commit();
 }
@@ -3494,55 +3895,9 @@ function depthFromStarts(t) {
   }
   return d;
 }
-/**
- * Tidy branch: the selected node is the root; everything further from the starts that hangs from it is laid out as a
- * clean tree growing away from its parent (rows of "Step" along the branch, siblings side by side).
- */
-function tidyBranch() {
-  const t = S.cur, ns = selNodes();
-  if (ns.length !== 1) { toast(_('Select exactly one node: the root of the branch to tidy.')); return; }
-  const root = ns[0], depth = depthFromStarts(t), dr = depth.get(root.id) ?? 0;
-  const nbrs = id => [...t.links.values()].filter(l => linkLook(t, l) !== 'portal' && (l.from === id || l.to === id)).map(l => (l.from === id ? l.to : l.from));
-  const parent = nbrs(root.id).filter(id => (depth.get(id) ?? 1e9) < dr).map(id => t.nodes.get(id))[0];
-  let dx, dy;
-  if (parent) { dx = root.x - parent.x; dy = root.y - parent.y; } else { dx = root.x; dy = root.y; }
-  const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
-  const px = -dy, py = dx;
-  const children = new Map(), seen = new Set([root.id]);
-  const q = [root.id];
-  while (q.length) {
-    const id = q.shift(), dd = depth.get(id) ?? 0, kids = [];
-    for (const nb of nbrs(id)) if (!seen.has(nb) && (depth.get(nb) ?? 1e9) > dd) { seen.add(nb); kids.push(nb); q.push(nb); }
-    // keep the current side-by-side order
-    kids.sort((a, b) => { const A = t.nodes.get(a), B = t.nodes.get(b); return (A.x * px + A.y * py) - (B.x * px + B.y * py); });
-    children.set(id, kids);
-  }
-  const s = step();
-  let next = 0;
-  const lat = new Map();
-  const place = id => {
-    const kids = children.get(id);
-    if (!kids.length) { lat.set(id, next++); return; }
-    kids.forEach(place);
-    lat.set(id, (lat.get(kids[0]) + lat.get(kids[kids.length - 1])) / 2);
-  };
-  place(root.id);
-  const off = lat.get(root.id);
-  const lev = new Map([[root.id, 0]]);
-  for (const [id, kids] of children) for (const k of kids) lev.set(k, lev.get(id) + 1);
-  const rx = root.x, ry = root.y;
-  for (const id of seen) {
-    if (id === root.id) continue;
-    const n = t.nodes.get(id), u = lev.get(id) * s, v = (lat.get(id) - off) * s;
-    n.x = R1(rx + dx * u + px * v); n.y = R1(ry + dy * u + py * v);
-  }
-  for (const l of t.links.values()) if (seen.has(l.from) && seen.has(l.to)) l.curve = 0;
-  S.sel = new Set(seen);
-  commit();
-  toast(_('Tidied {n} nodes.', { n: seen.size }));
-}
 /** Untangle: pushes overlapping nodes apart and pulls linked ones to "Step" (only the selection moves; nothing selected = all). */
 function relax() {
+  armMirror(selNodes());
   const t = S.cur; if (!t) return;
   const all = [...t.nodes.values()], mov = S.sel.size ? new Set(S.sel) : new Set(t.nodes.keys());
   const s = step(), minD = s * 0.8, cell = minD;
@@ -3570,12 +3925,14 @@ function relax() {
   commit();
 }
 function snapSelected() {
+  armMirror(selNodes());
   const ns = selNodes().length ? selNodes() : [...(S.cur?.nodes.values() || [])], g = gridSize();
   for (const n of ns) { n.x = Math.round(n.x / g) * g; n.y = Math.round(n.y / g) * g; }
   commit();
 }
 /** Curves every link between two selected nodes that sit at a similar distance from (cx, cy) along that circle. */
 function curveSelected(cx, cy, quiet) {
+  if (!S.mirrorJob) armMirror(selNodes());
   const t = S.cur; let k = 0;
   for (const l of t.links.values()) {
     if (!S.sel.has(l.from) || !S.sel.has(l.to)) continue;
@@ -3587,6 +3944,7 @@ function curveSelected(cx, cy, quiet) {
   return k;
 }
 function straightenSelected(doCommit = true) {
+  if (!S.mirrorJob) armMirror(selNodes());
   const t = S.cur; let k = 0;
   for (const l of t.links.values()) if (S.sel.has(l.from) && S.sel.has(l.to) && l.curve) { l.curve = 0; k++; }
   if (doCommit) { commit(); toast(_('Straightened {n} links.', { n: k })); }
@@ -3598,7 +3956,8 @@ on('arrCircle', arrangeCircle);
 on('arrArc', arrangeArc);
 on('arrLine', arrangeLine);
 on('arrGrid', arrangeGrid);
-on('arrTidy', tidyBranch);
+on('arrSquare', squareOrDiamond);
+on('arrMirrorFix', repairMirror);
 on('arrRelax', relax);
 on('arrSnap', snapSelected);
 on('arrCurveC', () => { const ns = selNodes(); if (ns.length < 2) return toast(_('Select at least {n} nodes first (Select tool, drag a box or Shift+click).', { n: 2 })); const [cx, cy] = centroid(ns); curveSelected(cx, cy); });
@@ -3623,7 +3982,7 @@ updateLegend();
 const ADD_SIZES = [['small', 'Small'], ['medium', 'Notable'], ['large', 'Large']];
 const ADD_TYPES = [['normal', 'Normal', '#8d93a1'], ['start', 'Start', '#ffd34a'], ['and', 'AND', '#ffe97a']];
 const SIZE_COL = { small: '#8d93a1', medium: '#6aa9ff', large: '#e0604f' };
-const addState = { shape: 'small', type: 'normal', copy: false, color: '' };
+const addState = { shape: 'small', type: 'normal', copy: false, color: '', form: 'circle' };
 try { Object.assign(addState, JSON.parse(localStorage.getItem('wf.add3') || '{}')); } catch (e) { /* storage unavailable */ }
 if (!RADIUS[addState.shape]) addState.shape = 'small';
 if (!ADD_TYPES.some(t => t[0] === addState.type)) addState.type = 'normal';
@@ -3635,7 +3994,7 @@ function addColor() { return addState.color || (addState.type === 'normal' ? SIZ
 function drawPresetIcon(cnv, shape, type) {
   const d = 2, c = cnv.getContext('2d'); cnv.width = 36 * d; cnv.height = 36 * d;
   const kind = type === 'and' ? type : 'normal';
-  const fake = { shape, kind, group: '' }, r = RADIUS[shape], s = 14 / frameRadius(fake);
+  const fake = { shape, kind, group: '', form: addState.form }, r = RADIUS[shape], s = 14 / (frameRadius(fake) * ({ diamond: 1.25, square: 1.0, star: 1.4 }[addState.form] || 1));
   const col = addState.color || (type === 'normal' ? SIZE_COL[shape] : ADD_TYPES.find(t => t[0] === type)[2]);
   c.setTransform(d * s, 0, 0, d * s, 18 * d, 18 * d);
   drawFrame(fake, r, col, c);
@@ -3656,6 +4015,7 @@ function syncAddUI() {
   $$('#addMenu canvas[data-icon]').forEach(cv2 => drawPresetIcon(cv2, cv2.dataset.icon, addState.type));
   $$('#addMenuSizes .pchip').forEach(b => b.classList.toggle('on', !addState.copy && b.dataset.size === addState.shape));
   $$('#addMenuTypes button').forEach(b => b.classList.toggle('on', b.dataset.type === addState.type));
+  $$('#addMenuForms button').forEach(b => b.classList.toggle('on', b.dataset.form === addState.form));
   $$('#addMenuColors [data-col]').forEach(b => b.classList.toggle('on', b.dataset.col === addState.color));
   $('#addMenuPick').value = addState.color || '#c9a24a';
   $('#addMenuCopy').classList.toggle('on', addState.copy);
@@ -3683,6 +4043,7 @@ function closeAddMenu() { $('#addMenu').hidden = true; addMenuAt = null; }
 $('#addMenu').onclick = e => {
   if (e.target.closest('#addMenuCopy')) { setAdd({ copy: !addState.copy }); closeAddMenu(); return; }
   const ty = e.target.closest('#addMenuTypes button'); if (ty) { setAdd({ type: ty.dataset.type, copy: false }); return; }
+  const fo = e.target.closest('#addMenuForms button'); if (fo) { setAdd({ form: fo.dataset.form, copy: false }); return; }
   const co = e.target.closest('#addMenuColors [data-col]'); if (co) { setAdd({ color: co.dataset.col, copy: false }); return; }
   const b = e.target.closest('#addMenuSizes .pchip'); if (!b) return;
   setAdd({ shape: b.dataset.size, copy: false }); closeAddMenu();   // choose only: the next left click places it
@@ -3711,27 +4072,100 @@ function scaleSelection(f) {
   commit();
   toast(origin ? _('Scaled around (0,0) — symmetry kept.') : _('Scaled around the selection centre.'));
 }
-/** Turns the selection 90° (dir 1 = clockwise, -1 = counter-clockwise) around its centre, keeping its shape; nothing selected = whole tree around (0,0).
- *  With Mirror on, the mirrored copies follow so the symmetry is kept. Curved links keep their bend (it is relative to the link). */
-function rotateSelection(dir) {
-  const t = S.cur; if (!t) return;
+/** Turns the selection by `deg` degrees (positive = clockwise on screen) around its centre, keeping its shape;
+ *  nothing selected = whole tree around (0,0). With Mirror on, the mirrored copies follow so the symmetry is kept.
+ *  Curved links keep their bend (it is relative to the link). */
+const R10 = v => Math.round(v * 10) / 10;
+function rotateBy(deg, quiet) {
+  const t = S.cur; if (!t || !deg) return;
   let ns = selNodes(); const whole = !ns.length;
   if (whole) ns = [...t.nodes.values()];
   if (ns.length < 2) return toast(_('Select at least {n} nodes first (Select tool, drag a box or Shift+click).', { n: 2 }));
   let [cx, cy] = whole ? [0, 0] : centroid(ns);
-  if (!whole && snapOn()) { const s = gridSize(); cx = Math.round(cx / s) * s; cy = Math.round(cy / s) * s; }   // stays on the grid
-  const sel = new Set(ns);
-  const mirrors = whole ? ns.map(() => []) : ns.map(n => counterparts(t, n).filter(c => !sel.has(c.node)));
+  if (!whole && snapOn() && Math.abs(deg % 90) < 1e-9) { const s = gridSize(); cx = Math.round(cx / s) * s; cy = Math.round(cy / s) * s; }   // quarter turns stay on the grid
+  const sel = new Set(ns), a = deg * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+  const mirrors = whole ? ns.map(() => []) : ns.map(n => counterparts(t, n).filter(m => !sel.has(m.node)));
   ns.forEach((n, i) => {
     const dx = n.x - cx, dy = n.y - cy;
-    n.x = R1(cx - dir * dy); n.y = R1(cy + dir * dx);
-    mirrors[i].forEach(m => { const [qx, qy] = mirrorApply(m.k, n.x, n.y); m.node.x = R1(qx); m.node.y = R1(qy); });
+    n.x = R10(cx + dx * c - dy * sn); n.y = R10(cy + dx * sn + dy * c);
+    mirrors[i].forEach(m => { const [qx, qy] = mirrorApply(m.k, n.x, n.y); m.node.x = R10(qx); m.node.y = R10(qy); });
   });
   commit();
-  toast(whole ? _('Whole tree turned 90° around (0,0).') : _('Selection turned 90°.'));
+  const shown = +deg.toFixed(2);
+  if (!quiet) toast(whole ? _('Whole tree turned {a}° around (0,0).', { a: shown }) : _('Selection turned {a}°.', { a: shown }));
+}
+const rotAngle = () => Math.abs(parseFloat($('#rotAngle')?.value)) || 90;
+function rotateSelection(dir) { rotateBy(dir * rotAngle()); }
+/** Main direction of a set of points (principal axis), in degrees on screen (0 = pointing right). */
+function mainAxis(ns) {
+  const [cx, cy] = centroid(ns);
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const n of ns) { const dx = n.x - cx, dy = n.y - cy; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; }
+  return 0.5 * Math.atan2(2 * sxy, sxx - syy) * 180 / Math.PI;
+}
+/** Smallest turn that brings an axis (direction without sense) from `from` to `to` degrees: -90..90. */
+const axisTurn = (from, to) => { let d = (to - from) % 180; if (d > 90) d -= 180; if (d <= -90) d += 180; return d; };
+function straighten(toCentre) {
+  const ns = needSel(2); if (!ns) return;
+  const ax = mainAxis(ns);
+  let target;
+  if (toCentre) { const [cx, cy] = centroid(ns); target = Math.atan2(cy, cx) * 180 / Math.PI; }
+  else target = Math.round(ax / 15) * 15;
+  const d = axisTurn(ax, target);
+  if (Math.abs(d) < 0.05) return toast(_('Aligned: turned {a}°.', { a: 0 }));
+  rotateBy(d, true);
+  toast(_('Aligned: turned {a}°.', { a: +d.toFixed(1) }));
+}
+/** Mirror axis: a line through the selection centre or (0,0); angle 0 = vertical, 90 = horizontal (clockwise). */
+function mirrorAxis(ns) {
+  const deg = parseFloat($('#mirAngle')?.value) || 0, a = deg * Math.PI / 180;
+  const [px, py] = $('#mirPivot')?.value === 'origin' ? [0, 0] : centroid(ns);
+  return { px, py, dx: -Math.sin(a), dy: Math.cos(a) };
+}
+function reflectPt(ax, x, y) {
+  const rx = x - ax.px, ry = y - ax.py, k = rx * ax.dx + ry * ax.dy;
+  return [R10(ax.px + 2 * k * ax.dx - rx), R10(ax.py + 2 * k * ax.dy - ry)];
+}
+function flipSelection() {
+  const t = S.cur, ns = needSel(1); if (!ns) return;
+  armMirror(ns);
+  const ax = mirrorAxis(ns), sel = new Set(ns.map(n => n.id));
+  for (const n of ns) [n.x, n.y] = reflectPt(ax, n.x, n.y);
+  for (const l of t.links.values()) if (sel.has(l.from) && sel.has(l.to) && l.curve) l.curve = -l.curve;   // a mirror turns bends the other way
+  commit();
+  toast(_('Flipped {n} nodes.', { n: ns.length }));
+}
+function mirrorCopy() {
+  const t = S.cur, ns = needSel(1); if (!ns) return;
+  const ax = mirrorAxis(ns), map = new Map();
+  for (const n of ns) {
+    const [x, y] = reflectPt(ax, n.x, n.y);
+    const c = newNode(freshId(t), x, y, cloneProps(n));
+    c.start = n.start; t.nodes.set(c.id, c); map.set(n.id, c.id);
+  }
+  const near = (x, y) => { for (const m of t.nodes.values()) if (!map.has(m.id) && ![...map.values()].includes(m.id) && Math.hypot(m.x - x, m.y - y) < 2) return m.id; return null; };
+  for (const l of [...t.links.values()]) {
+    const fa = map.has(l.from), fb = map.has(l.to);
+    if (!fa && !fb) continue;
+    let a = fa ? map.get(l.from) : null, b = fb ? map.get(l.to) : null;
+    if (!a) { const o = t.nodes.get(l.from), r = reflectPt(ax, o.x, o.y); a = near(r[0], r[1]); }   // link to a node outside: copy it if that node's mirror exists
+    if (!b) { const o = t.nodes.get(l.to), r = reflectPt(ax, o.x, o.y); b = near(r[0], r[1]); }
+    if (!a || !b || a === b || t.links.has(linkKey(a, b))) continue;
+    const nl = Object.assign({}, l, { from: a, to: b }); if (nl.curve) nl.curve = -nl.curve;
+    t.links.set(linkKey(a, b), nl);
+  }
+  replicateMirrored(t, [...map.values()]);
+  S.sel = new Set(map.values());
+  commit();
+  toast(_('Mirrored copy: {n} nodes.', { n: map.size }));
 }
 on('arrRotR', () => rotateSelection(1));
 on('arrRotL', () => rotateSelection(-1));
+on('arrStraighten', () => straighten(false));
+on('arrAim', () => straighten(true));
+on('arrFlip', flipSelection);
+on('arrMirCopy', mirrorCopy);
+document.addEventListener('click', e => { const b = e.target.closest('[data-ra]'); if (b) { $('#rotAngle').value = b.dataset.ra; } });
 on('arrSpread', () => scaleSelection(window.event?.shiftKey ? 1.25 : 1.1));
 on('arrShrink', () => scaleSelection(window.event?.shiftKey ? 0.8 : 1 / 1.1));
 window.addEventListener('keydown', e => {
@@ -3783,6 +4217,8 @@ function syncLinkMenu() {
   $$('#linkMenuItems .lkitem').forEach(b => b.classList.toggle('on', b.dataset.lt === cur));
   $('#linkMenu .am-title').textContent = editLink ? _('This link') : _('Link type');
   $('#lkLevelRow').hidden = !editLink;
+  $('#lkModeBox').hidden = !!editLink;
+  $$('#lkModes button').forEach(b => b.classList.toggle('on', b.dataset.lm === (S.linkMode || 'normal')));
   if (editLink) $('#lkLevel').value = editLink.min_level || 0;
   }
 function openLinkMenu(cx, cy, link) {
@@ -3793,6 +4229,11 @@ function openLinkMenu(cx, cy, link) {
 }
 function closeLinkMenu() { $('#linkMenu').hidden = true; editLink = null; }
 $('#linkMenu').onclick = e => {
+  const mb = e.target.closest('[data-lm]');
+  if (mb) {   // connect mode: normal / continuous (chain) / static (same origin)
+    S.linkMode = mb.dataset.lm; syncLinkMenu(); if (typeof setHint === 'function') setHint();
+    toast(_('Connect mode: {m}', { m: mb.textContent })); return;
+  }
   const b = e.target.closest('.lkitem'); if (!b) return;
   if (editLink) {   // change the type of this link (and of its mirrored copies)
     for (const l of mirroredLinks(S.cur, editLink)) l.type = b.dataset.lt;

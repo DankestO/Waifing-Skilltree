@@ -3,7 +3,7 @@
     <span class="brand">Waifing Skilltree · Editor</span>
     <button id="btnOpenDir" data-i data-it title="Choose the datapack root folder (the one with pack.mcmeta and data/)">Open datapack folder</button>
     <button id="btnOpenFiles" data-i data-it title="Open .json trees, .zip datapacks or .jar files (you can pick several)">Open files…</button>
-    <button id="btnSave" class="primary" data-i data-it title="Ctrl+S">Save</button>
+    <button id="btnSave" class="primary" data-i data-it title="Save the datapack as a folder (unzipped) — Ctrl+S">Save</button>
     <button id="btnZip" data-i>⬇ Export .zip</button>
     <span class="sep"></span>
     <button id="btnUndo" data-it title="Undo (Ctrl+Z)">↶</button>
@@ -76,34 +76,60 @@
       <div class="group">
         <h3 data-i>Tool</h3>
         <div class="toolgrid" id="toolBtns">
+          <button data-tool="select" class="wide" data-it title="Click: select · Drag: move · Drag on empty space: box select · Right-click a node: menu (delete, duplicate) · Delete key: delete"><i>⬚</i><span data-i>Select/Move</span> <kbd>V</kbd></button>
           <button data-tool="view"><i>◉</i><span data-i>Preview</span> <kbd>P</kbd></button>
-          <button data-tool="select"><i>⬚</i><span data-i>Select</span> <kbd>V</kbd></button>
           <button data-tool="add"><i>✚</i><span data-i>Add</span> <kbd>A</kbd></button>
           <button data-tool="link"><i>⟋</i><span data-i>Connect</span> <kbd>L</kbd></button>
-          <button data-tool="delete"><i>✕</i><span data-i>Delete</span> <kbd>X</kbd></button>
           <button data-tool="bend"><i>⌒</i><span data-i>Curve links</span> <kbd>B</kbd></button>
         </div>
       </div>
       <div class="group">
         <h3 data-i>Arrange selection</h3>
         <div class="toolgrid">
-          <button id="arrCircle" data-it title="Even circle around the selection's centre; links between neighbours follow the circle"><span data-i>◯ Circle</span></button>
-          <button id="arrArc" data-it title="Keeps both ends and bends the rest into an arc"><span data-i>◠ Arc</span></button>
-          <button id="arrLine" data-it title="Straight line, evenly spaced, between the two farthest nodes"><span data-i>— Line</span></button>
-          <button id="arrGrid" data-it title="Grid with the step below"><span data-i>▦ Grid</span></button>
-          <button id="arrTidy" class="wide" data-it title="Select ONE node: everything hanging from it (further from the starts) becomes a tidy tree growing away from its parent"><span data-i>⤷ Tidy branch from node</span></button>
           <button id="arrSpread" data-it title="Spread the selection apart (nothing selected = whole tree). With Mirror on it keeps the symmetry. Shift = bigger step. Key ]"><span data-i>⤧ Spread</span></button>
           <button id="arrShrink" data-it title="Pull the selection together (nothing selected = whole tree). With Mirror on it keeps the symmetry. Shift = bigger step. Key ["><span data-i>⤡ Pull together</span></button>
-          <button id="arrRotL" data-it title="Turn the selection 90° counter-clockwise, keeping its shape (nothing selected = whole tree). With Mirror on the copies follow. Key Shift+R"><span data-i>⟲ 90°</span></button>
-          <button id="arrRotR" data-it title="Turn the selection 90° clockwise, keeping its shape (nothing selected = whole tree). With Mirror on the copies follow. Key R"><span data-i>⟳ 90°</span></button>
-          <button id="arrRelax" class="wide" data-it title="Pushes overlapping nodes apart and evens out link lengths (nothing selected = whole tree)"><span data-i>✳ Untangle</span></button>
-          <button id="arrCurveC" data-it title="Links between selected nodes follow a circle around the selection's centre"><span data-i>⤺ Curve (centre)</span></button>
-          <button id="arrCurveO" data-it title="Links between selected nodes follow a circle around (0,0)"><span data-i>⤺ Curve (0,0)</span></button>
-          <button id="arrStraight" data-it title="Straight links again"><span data-i>Straighten</span></button>
-          <button id="arrSnap" data-it title="Snap the selection (or everything) to the grid"><span data-i>Snap selection</span></button>
+        </div>
+        <div class="toolgrid">
+          <button id="arrCurveC" data-it title="Links between selected nodes follow a circle around the selection's centre"><span data-i>⤺ Bend links (selection)</span></button>
+          <button id="arrCurveO" data-it title="Links between selected nodes follow a circle around (0,0)"><span data-i>◎ Bend links (tree centre)</span></button>
+          <button id="arrStraight" data-it title="Straight links again">⟋ <span data-i>Straighten</span></button>
+          <button id="arrRelax" data-it title="Pushes overlapping nodes apart and evens out link lengths (nothing selected = whole tree)"><span data-i>✳ Untangle</span></button>
+        </div>
+        <div class="toolgrid">
+          <button id="arrArc" data-it title="Keeps both ends and bends the rest into an arc"><span data-i>◠ Arc</span></button>
+          <button id="arrLine" data-it title="Straight line, evenly spaced, between the two farthest nodes"><span data-i>— Line</span></button>
+          <button id="arrGrid" data-it title="Rows and columns, keeping the rows you already had (nodes at a similar height share a row)"><span data-i>▦ Grid</span></button>
+          <button id="arrSnap" data-it title="Snap the selection (or everything) to the grid">⌗ <span data-i>Snap selection</span></button>
+        </div>
+        <div class="toolgrid">
+          <button id="arrCircle" data-it title="Even circle around the selection's centre; links between neighbours follow the circle"><span data-i>◯ Circle</span></button>
+          <button id="arrSquare" data-it title="Even square around the selection's centre. Press it again to turn it 45° into a diamond (a node that splits into two paths that meet again)"><span data-i>□ Square</span></button>
         </div>
         <label data-i>Step (distance between nodes)</label>
         <input id="arrStep" type="number" min="30" max="200" value="56">
+      </div>
+      <div class="group">
+        <h3 data-i>Rotate and mirror</h3>
+        <div class="row" style="align-items:center;gap:6px">
+          <input id="rotAngle" type="number" step="any" value="90" style="width:80px;flex:none" data-it title="Angle (°)">
+          <button id="arrRotL" style="flex:1" data-it title="Turn the selection by the angle on the left, counter-clockwise (nothing selected = whole tree around (0,0)). With Mirror on the copies follow. Key Shift+R">⟲</button>
+          <button id="arrRotR" style="flex:1" data-it title="Turn the selection by the angle on the left, clockwise (nothing selected = whole tree around (0,0)). With Mirror on the copies follow. Key R">⟳</button>
+        </div>
+        <div class="rot-presets"><button data-ra="1">1°</button><button data-ra="5">5°</button><button data-ra="15">15°</button><button data-ra="30">30°</button><button data-ra="45">45°</button><button data-ra="60">60°</button><button data-ra="90">90°</button></div>
+        <div class="toolgrid">
+          <button id="arrStraighten" data-it title="Turns the selection so its main direction is exactly vertical, horizontal or a multiple of 15°"><span data-i>⊾ Align</span></button>
+          <button id="arrAim" data-it title="Turns the selection so its main direction points exactly at (0,0), like a branch of a round tree"><span data-i>◎ Point to centre</span></button>
+        </div>
+        <label data-i>Mirror axis</label>
+        <div class="row" style="align-items:center;gap:6px">
+          <input id="mirAngle" type="number" step="any" value="0" style="width:80px;flex:none" data-it title="Axis angle (0° = vertical, 90° = horizontal)">
+          <select id="mirPivot"><option value="sel" data-i>through the selection centre</option><option value="origin" data-i>through (0,0)</option></select>
+        </div>
+        <div class="toolgrid">
+          <button id="arrFlip" data-it title="Flips the selection over the axis, in place"><span data-i>⇋ Flip</span></button>
+          <button id="arrMirCopy" data-it title="Creates a mirrored copy of the selection on the other side of the axis, with its links. Links to nodes outside the selection are copied too when the mirrored node exists"><span data-i>⧉ Mirror copy</span></button>
+          <button id="arrMirrorFix" class="wide" data-it title="Makes the mirrored copies follow the selected nodes again (Mirror mode)"><span data-i>⟲ Repair mirror</span></button>
+        </div>
       </div>
       <div class="group">
         <h3 data-i>Actions</h3>
@@ -124,11 +150,18 @@
       <div id="nodeTip" hidden></div>
       <canvas id="minimap" width="180" height="180" hidden></canvas>
       <div id="legend" hidden></div>
+      <div id="nodeMenu" hidden>
+        <button id="nmDup" type="button"><span data-i>⧉ Duplicate</span><kbd>Ctrl+D</kbd></button>
+        <button id="nmDel" type="button" class="danger"><span data-i>✕ Delete</span><kbd data-i>Del</kbd></button>
+        <div class="nm-hint" data-i>Tip: the Delete key removes the selected nodes faster.</div>
+      </div>
       <div id="addMenu" hidden>
         <div class="am-title" data-i>Node type</div>
         <div id="addMenuTypes" class="seg"></div>
         <div class="am-title" data-i>Size</div>
         <div id="addMenuSizes"></div>
+        <div class="am-title" data-i>Shape</div>
+        <div id="addMenuForms" class="seg"><button type="button" data-form="circle" data-it title="Circle">●</button><button type="button" data-form="square" data-it title="Square">■</button><button type="button" data-form="diamond" data-it title="Diamond">◆</button><button type="button" data-form="star" data-it title="Star">★</button></div>
         <div class="am-title" data-i>Color</div>
         <div id="addMenuColors" class="swatches"></div>
         <div class="row" style="margin-top:4px"><input type="color" id="addMenuPick" class="fixed" data-it title="Custom color"><button id="addMenuCopy" class="chip" type="button" data-it title="New nodes copy everything from the selected node (attributes, icon, colour…)"><span data-i>⧉ Copy selected node</span></button></div>
@@ -136,12 +169,12 @@
         <select id="newKind" hidden><option value="normal">normal</option><option value="and">and</option></select>
         <input type="checkbox" id="newStart" hidden><input type="checkbox" id="copySel" hidden><input id="newColor" hidden>
       </div>
-      <div id="linkMenu" hidden><div class="am-title" data-i>Link type</div><div id="linkMenuItems"></div><label id="lkLevelRow" class="lklevel" hidden><span data-i>Needs the origin at level</span> <input id="lkLevel" type="number" min="0" max="100" value="0"> <span class="muted small" data-i>(0 = just taken)</span></label></div>
+      <div id="linkMenu" hidden><div id="lkModeBox"><div class="am-title" data-i>Connect mode</div><div class="seg lkmodes" id="lkModes"><button type="button" data-lm="normal" data-i data-it title="Click A then B; the next click starts a new link">Normal</button><button type="button" data-lm="chain" data-i data-it title="B becomes the next A: draw a path node by node (same as holding Shift)">Continuous</button><button type="button" data-lm="static" data-i data-it title="A stays selected: link several nodes to the same origin">Static</button></div></div><div class="am-title" data-i>Link type</div><div id="linkMenuItems"></div><label id="lkLevelRow" class="lklevel" hidden><span data-i>Needs the origin at level</span> <input id="lkLevel" type="number" min="0" max="100" value="0"> <span class="muted small" data-i>(0 = just taken)</span></label></div>
       <div id="dropHint" data-i>Drop .json, .zip or folders here to import</div>
     </section>
     <aside id="inspector"></aside>
   </main>
-  <footer id="status"><span id="stCount"></span><span id="stCursor"></span><span id="stMode"></span><span id="stSave" style="margin-left:auto"></span></footer>
+  <footer id="status"><span id="stCount"></span><span id="stCursor"></span><span id="stMode"></span><button id="stMirror" type="button" hidden></button><span id="stSave" style="margin-left:auto"></span></footer>
 </div>
 
 <datalist id="attrList"></datalist>

@@ -66,6 +66,8 @@ public class SkillTree {
     /** Trees sharing a non-empty group are mutually exclusive: the first one a player uses locks the others
      *  until a node with {@code unlock_trees} opens them. Empty = a normal tree, never locked. */
     public String exclusiveGroup = "";
+    /** When true the tree is closed until a node the player owns lists it in {@code unlock_trees} (by id or "#group"). */
+    public boolean requiresUnlock = false;
     /** When true only the first start node is free; further start nodes need a taken neighbour like any node. */
     public boolean firstStartOnly = false;
     /** Limited group -> how many of its nodes a player may take (e.g. "keystone_mage" -> 2). Nodes join a group with "group". */
@@ -183,6 +185,7 @@ public class SkillTree {
         o.addProperty("icon", icon);
         o.addProperty("background", background);
         if (!exclusiveGroup.isEmpty()) o.addProperty("exclusive_group", exclusiveGroup);
+        if (requiresUnlock) o.addProperty("requires_unlock", true);
         if (firstStartOnly) o.addProperty("first_start_only", true);
         if (!groupLimits.isEmpty()) {
             JsonObject bl = new JsonObject();
@@ -222,6 +225,7 @@ public class SkillTree {
         if (o.has("icon")) t.icon = o.get("icon").getAsString();
         if (o.has("background")) t.background = o.get("background").getAsString();
         if (o.has("exclusive_group")) t.exclusiveGroup = o.get("exclusive_group").getAsString().trim();
+        if (o.has("requires_unlock")) t.requiresUnlock = o.get("requires_unlock").getAsBoolean();
         if (o.has("first_start_only")) t.firstStartOnly = o.get("first_start_only").getAsBoolean();
         if (o.has("group_limits")) o.getAsJsonObject("group_limits").entrySet().forEach(e -> t.groupLimits.put(e.getKey(), Math.max(0, e.getValue().getAsInt())));
         if (o.has("choice_groups")) o.getAsJsonObject("choice_groups").entrySet().forEach(e -> {

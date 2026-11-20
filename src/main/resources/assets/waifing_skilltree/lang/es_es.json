@@ -10,6 +10,7 @@
   "waifingskilltree.node.cost": "Coste: %s puntos de habilidad",
   "waifingskilltree.msg.respec": "Habilidades reiniciadas.",
   "waifingskilltree.msg.not_available": "Aún no puedes tomar este nodo.",
+  "waifingskilltree.node.and_all": "Requiere todos los caminos conectados",
   "waifingskilltree.node.and": "Requiere %s nodos conectados tomados",
   "waifingskilltree.node.wormhole": "Portal: conecta con un nodo lejano",
   "waifingskilltree.node.start": "Nodo de inicio",
@@ -74,6 +75,7 @@
   "waifingskilltree.msg.tree_locked": "Este árbol está bloqueado: ya sigues %s.",
   "waifingskilltree.msg.refund_exclusive": "Primero devuelve los nodos de los árboles que abrió este nodo.",
   "waifingskilltree.screen.tree_locked": "Bloqueado: ya sigues %s",
+  "waifingskilltree.screen.tree_closed": "Cerrado: lo abre un nodo de otro árbol",
   "waifingskilltree.tab.locked": "Bloqueado (exclusivo con tu árbol actual)",
   "waifingskilltree.node.click_recipes": "Desbloquea %s receta(s) de clic derecho",
   "waifingskilltree.node.unlock_tree": "Abre el árbol: %s",
@@ -119,5 +121,8 @@
   "waifingskilltree.node.choice_locked": "Elección bloqueada",
   "waifingskilltree.node.free_choice": "Elección gratis: tienes %s",
   "waifingskilltree.node.free_choice_if": "Elección gratis si tienes: %s",
-  "waifingskilltree.node.level_cap": "Niveles %s-%s: necesitas %s de: %s"
+  "waifingskilltree.node.level_cap": "Niveles %s-%s: necesitas %s de: %s",
+  "waifingskilltree.attrs.title": "Atributos",
+  "waifingskilltree.attrs.none": "Aún no has ganado atributos",
+  "waifingskilltree.attrs.hint": "Clic: desactivar/activar  * = condicional"
 }

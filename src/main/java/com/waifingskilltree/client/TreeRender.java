@@ -144,6 +144,36 @@ final class TreeRender {
         tri(tx, ty, ct, bx, by, cb, x - wx, y - wy, cr);
     }
 
+    /** Square diamond (rhombus) centred on (x,y), half-diagonal s; metal gradient or flat colour. */
+    static void rhomb(float x, float y, float s, int[] metal, float gradR, int flat) {
+        int ct = metal == null ? flat : metal(metal, x, y - s, gradR), cb = metal == null ? flat : metal(metal, x, y + s, gradR);
+        int cl = metal == null ? flat : metal(metal, x - s, y, gradR), cr = metal == null ? flat : metal(metal, x + s, y, gradR);
+        tri(x, y - s, ct, x + s, y, cr, x, y + s, cb);
+        tri(x, y - s, ct, x, y + s, cb, x - s, y, cl);
+    }
+
+    /** Node outline other than a circle: "square", "diamond" or "star", centred on (0,0), size s (half-diagonal of the diamond). */
+    static void shape(String form, float s, int[] metal, float gradR, int flat) {
+        if ("square".equals(form)) {
+            float k = s * 0.78f;
+            int a = metal == null ? flat : metal(metal, -k, -k, gradR), b = metal == null ? flat : metal(metal, k, -k, gradR);
+            int c = metal == null ? flat : metal(metal, k, k, gradR), d = metal == null ? flat : metal(metal, -k, k, gradR);
+            tri(-k, -k, a, k, -k, b, k, k, c);
+            tri(-k, -k, a, k, k, c, -k, k, d);
+        } else if ("star".equals(form)) {
+            float[] px = new float[10], py = new float[10];
+            for (int i = 0; i < 10; i++) {
+                double an = -Math.PI / 2 + i * Math.PI / 5; float r = i % 2 == 0 ? s * 1.12f : s * 0.52f;
+                px[i] = (float) Math.cos(an) * r; py[i] = (float) Math.sin(an) * r;
+            }
+            int cc = metal == null ? flat : metal(metal, 0, 0, gradR);
+            for (int i = 0; i < 10; i++) {
+                int j = (i + 1) % 10;
+                tri(0, 0, cc, px[i], py[i], metal == null ? flat : metal(metal, px[i], py[i], gradR), px[j], py[j], metal == null ? flat : metal(metal, px[j], py[j], gradR));
+            }
+        } else rhomb(0, 0, s, metal, gradR, flat);
+    }
+
     /** {@code count} triangular spikes between r0 and r1 (half = half width in radians). */
     static void spikes(int count, float r0, float r1, double half, double offset, int[] metal, float gradR) {
         for (int i = 0; i < count; i++) {

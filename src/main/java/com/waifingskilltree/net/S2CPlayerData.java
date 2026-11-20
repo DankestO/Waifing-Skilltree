@@ -20,9 +20,11 @@ public class S2CPlayerData {
     private final int points;
     private final Map<String, String> primary;
     private final int buyCost;
+    private final Set<String> disabled;
 
-    public S2CPlayerData(Map<String, Map<String, Integer>> taken, Set<String> gated, boolean selfRefund, int points, Map<String, String> primary, int buyCost) {
+    public S2CPlayerData(Map<String, Map<String, Integer>> taken, Set<String> gated, boolean selfRefund, int points, Map<String, String> primary, int buyCost, Set<String> disabled) {
         this.buyCost = buyCost;
+        this.disabled = disabled;
         this.taken = taken;
         this.gated = gated;
         this.selfRefund = selfRefund;
@@ -47,6 +49,8 @@ public class S2CPlayerData {
         buf.writeVarInt(m.primary.size());
         m.primary.forEach((g, t) -> { buf.writeUtf(g); buf.writeUtf(t); });
         buf.writeVarInt(m.buyCost + 2);
+        buf.writeVarInt(m.disabled.size());
+        m.disabled.forEach(buf::writeUtf);
     }
 
     public static S2CPlayerData decode(FriendlyByteBuf buf) {
@@ -68,12 +72,15 @@ public class S2CPlayerData {
         int pc = buf.readVarInt();
         for (int i = 0; i < pc; i++) primary.put(buf.readUtf(), buf.readUtf());
         int buyCost = buf.readVarInt() - 2;
-        return new S2CPlayerData(taken, gated, self, points, primary, buyCost);
+        Set<String> dis = new HashSet<>();
+        int dc = buf.readVarInt();
+        for (int i = 0; i < dc; i++) dis.add(buf.readUtf());
+        return new S2CPlayerData(taken, gated, self, points, primary, buyCost, dis);
     }
 
     public static void handle(S2CPlayerData m, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
-                () -> () -> ClientTrees.setPlayerData(m.taken, m.gated, m.selfRefund, m.points, m.primary, m.buyCost)));
+                () -> () -> ClientTrees.setPlayerData(m.taken, m.gated, m.selfRefund, m.points, m.primary, m.buyCost, m.disabled)));
         ctx.get().setPacketHandled(true);
     }
 }

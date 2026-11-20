@@ -39,6 +39,8 @@ public class PlayerSkills {
     public final Map<String, Map<String, List<Integer>>> taken = new HashMap<>();
     /** tree -> nodes whose item requirement was actually paid (creative mode pays nothing). */
     public final Map<String, Set<String>> itemsPaid = new HashMap<>();
+    /** Attributes the player switched off in the summary panel (their bonuses from the trees are not applied). */
+    public final Set<String> disabled = new HashSet<>();
 
     public Map<String, List<Integer>> of(String tree) {
         return taken.computeIfAbsent(tree, k -> new HashMap<>());
@@ -96,6 +98,8 @@ public class PlayerSkills {
             taken.put(k, c);
         });
         o.itemsPaid.forEach((k, v) -> itemsPaid.put(k, new HashSet<>(v)));
+        disabled.clear();
+        disabled.addAll(o.disabled);
     }
 
     public CompoundTag save() {
@@ -120,6 +124,9 @@ public class PlayerSkills {
         CompoundTag pr = new CompoundTag();
         primary.forEach(pr::putString);
         tag.put("primary", pr);
+        ListTag dis = new ListTag();
+        disabled.forEach(a -> dis.add(StringTag.valueOf(a)));
+        tag.put("disabled_attributes", dis);
         return tag;
     }
 
@@ -132,6 +139,9 @@ public class PlayerSkills {
         bought = tag.getInt("bought_points");
         CompoundTag pr = tag.getCompound("primary");
         for (String g : pr.getAllKeys()) primary.put(g, pr.getString(g));
+        disabled.clear();
+        ListTag dis = tag.getList("disabled_attributes", Tag.TAG_STRING);
+        for (int i = 0; i < dis.size(); i++) disabled.add(dis.getString(i));
         CompoundTag trees = tag.getCompound("taken");
         for (String tree : trees.getAllKeys()) {
             CompoundTag t = trees.getCompound(tree);

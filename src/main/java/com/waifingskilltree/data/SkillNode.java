@@ -13,6 +13,8 @@ import java.util.List;
 public class SkillNode {
     // Size/design: small = normal attribute, medium = special attribute, large = start node.
     public static final String SMALL = "small", MEDIUM = "medium", LARGE = "large";
+    // Outline of the node: round (default) or a diamond (rhombus).
+    public static final String CIRCLE = "circle", SQUARE = "square", DIAMOND = "diamond", STAR = "star";
     // Behaviour: normal; and = needs several taken neighbours.
     public static final String NORMAL = "normal", AND = "and";
 
@@ -22,9 +24,11 @@ public class SkillNode {
     public List<String> description = new ArrayList<>();
     public String icon = "minecraft:stone";
     public String shape = SMALL;
+    /** circle (default), square, diamond or star: only changes how the node is drawn. */
+    public String form = CIRCLE;
     public String kind = NORMAL;
     /** For kind=and: how many incoming neighbours must be taken. */
-    public int require = 2;
+    public int require = 2;   // AND nodes: connected nodes needed; 0 = all of them
     /** Optional color (#RRGGBB) to tell parts of the tree apart; empty = no tint. */
     public String color = "";
     /** Explicit start flag (independent of the visual size). The player may begin at any start node. */
@@ -121,6 +125,7 @@ public class SkillNode {
         description = new ArrayList<>(o.description);
         icon = o.icon;
         shape = o.shape;
+        form = o.form;
         kind = o.kind;
         require = o.require;
         cost = o.cost;
@@ -167,6 +172,7 @@ public class SkillNode {
         o.add("description", strings(description));
         o.addProperty("icon", icon);
         o.addProperty("shape", shape);
+        if (!CIRCLE.equals(form)) o.addProperty("form", form);
         o.addProperty("start", start);
         if (!NORMAL.equals(kind)) o.addProperty("kind", kind);
         if (AND.equals(kind)) o.addProperty("require", require);
@@ -238,6 +244,7 @@ public class SkillNode {
                 default -> SMALL;
             };
         }
+        if (o.has("form")) { String f = o.get("form").getAsString(); n.form = SQUARE.equals(f) || DIAMOND.equals(f) || STAR.equals(f) ? f : CIRCLE; }
         // Legacy trees have no "start" field: large nodes were the starts.
         n.start = o.has("start") ? o.get("start").getAsBoolean() : LARGE.equals(n.shape);
         if (o.has("max_level")) n.maxLevel = Math.max(1, o.get("max_level").getAsInt());
@@ -263,7 +270,7 @@ public class SkillNode {
         if (o.has("group")) n.group = o.get("group").getAsString().trim();
         if (o.has("group_bonus")) o.getAsJsonObject("group_bonus").entrySet().forEach(e -> n.groupBonus.put(e.getKey(), e.getValue().getAsInt()));
         if (o.has("kind")) n.kind = AND.equals(o.get("kind").getAsString()) ? AND : NORMAL;   // old "wormhole" nodes are normal now
-        if (o.has("require")) n.require = Math.max(1, o.get("require").getAsInt());
+        if (o.has("require")) n.require = Math.max(0, o.get("require").getAsInt());   // 0 = every connected path
         if (o.has("cost")) n.cost = o.get("cost").getAsInt();
         if (o.has("color")) n.color = o.get("color").getAsString();
         n.advancements = readStrings(o, "requires_advancements");
