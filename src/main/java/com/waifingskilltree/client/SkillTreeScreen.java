@@ -879,17 +879,20 @@ public class SkillTreeScreen extends Screen {
 
     // ================================================================ tooltip
     private List<Component> tooltip(SkillTree t, SkillNode n) {
-        List<Component> tip = new ArrayList<>();
+        List<Component> tip = new ArrayList<>();   // shown always: what the node gives
+        List<Component> req = new ArrayList<>();   // shown with Shift: what the node needs
+        java.util.function.ToIntFunction<String> lv = id -> ClientTrees.level(t.id, id);
         ChatFormatting color = switch (n.shape) {
             case SkillNode.MEDIUM -> ChatFormatting.GOLD;
             case SkillNode.LARGE -> ChatFormatting.LIGHT_PURPLE;
             default -> ChatFormatting.WHITE;
         };
+        int cur = ClientTrees.level(t.id, n.id);
+        boolean maxed = cur >= n.maxLevel();
         tip.add(Component.literal(n.title).withStyle(color));
         for (String d : n.description) tip.add(Component.literal(d).withStyle(ChatFormatting.GRAY));
         if (n.isStart()) tip.add(Component.translatable("waifingskilltree.node.start").withStyle(ChatFormatting.GOLD));
-        if (SkillNode.AND.equals(n.kind)) tip.add((n.require <= 0 ? Component.translatable("waifingskilltree.node.and_all") : Component.translatable("waifingskilltree.node.and", n.require)).withStyle(ChatFormatting.YELLOW));
-        if ((conn.getOrDefault(n.id, 0) & 2) != 0) tip.add(Component.translatable("waifingskilltree.node.wormhole").withStyle(ChatFormatting.LIGHT_PURPLE));
+        // ------------------------------------------------ rewards
         if (!n.attributes.isEmpty()) {
             tip.add(Component.empty());
             for (AttrMod a : n.attributes) {
@@ -904,48 +907,6 @@ public class SkillTreeScreen extends Screen {
             SkillTree ut = u.startsWith("#") ? null : ClientTrees.trees.get(u);
             tip.add(Component.translatable("waifingskilltree.node.unlock_tree", ut != null ? ut.title : u).withStyle(ChatFormatting.LIGHT_PURPLE));
         }
-        if (n.maxLevel() > 1) tip.add(Component.translatable("waifingskilltree.node.level", ClientTrees.level(t.id, n.id), n.maxLevel()).withStyle(ChatFormatting.YELLOW));
-        if (n.capLevel > 0 && !n.capNodes.isEmpty() && n.capLevel < n.maxLevel()) {   // "Levels 6-10: need 2 of: Warlord, Archmage..."
-            StringBuilder sb = new StringBuilder();
-            for (String id : n.capNodes) {
-                SkillNode r = t.nodes.get(id);
-                if (sb.length() > 0) sb.append(", ");
-                sb.append(r != null ? r.title : id).append(ClientTrees.level(t.id, id) > 0 ? " \u2714" : "");
-            }
-            boolean open = SkillRules.levelAllowed(n, n.capLevel + 1, id -> ClientTrees.level(t.id, id));
-            tip.add(Component.translatable("waifingskilltree.node.level_cap", n.capLevel + 1, n.maxLevel(), n.capNodeCount(), sb.toString())
-                    .withStyle(open ? ChatFormatting.GREEN : ChatFormatting.RED));
-        }
-        if (!n.requiresNodes.isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            for (String id : n.requiresNodes) {
-                SkillNode r = t.nodes.get(id);
-                if (sb.length() > 0) sb.append(", ");
-                sb.append(r != null ? r.title : id).append(ClientTrees.level(t.id, id) > 0 ? " \u2714" : " \u2718");
-            }
-            tip.add(Component.translatable("waifingskilltree.node.requires_nodes", n.requiredNodeCount(), sb.toString())
-                    .withStyle(SkillRules.requiredNodesMet(n, id -> ClientTrees.level(t.id, id)) ? ChatFormatting.GREEN : ChatFormatting.RED));
-        }
-        boolean freeNow = false;
-        if (!n.freeChoiceIf.isEmpty()) {   // "Free choice: you have Archmage" / "Free choice if you have: Archmage"
-            String f = SkillRules.freeBy(n, id -> ClientTrees.level(t.id, id));
-            if (f != null) {
-                freeNow = true;
-                SkillNode r = t.nodes.get(f);
-                tip.add(Component.translatable("waifingskilltree.node.free_choice", r != null ? r.title : f).withStyle(ChatFormatting.GREEN));
-            } else {
-                StringBuilder sb = new StringBuilder();
-                for (String id : n.freeChoiceIf) { SkillNode r = t.nodes.get(id); if (sb.length() > 0) sb.append(", "); sb.append(r != null ? r.title : id); }
-                tip.add(Component.translatable("waifingskilltree.node.free_choice_if", sb.toString()).withStyle(ChatFormatting.GRAY));
-            }
-        }
-        if (!n.group.isEmpty() && t.groupLimits.containsKey(n.group)) {   // e.g. "Keystone Merchant: 1/2 chosen"
-            java.util.function.ToIntFunction<String> lv = id -> ClientTrees.level(t.id, id);
-            int used = SkillRules.groupUsed(t, n.group, lv), lim = SkillRules.groupLimit(t, n.group, lv);
-            boolean allowed = SkillRules.groupAllowed(t, n, lv);
-            tip.add(Component.translatable("waifingskilltree.node.group_limit", groupName(n.group), used, lim)
-                    .withStyle(allowed ? ChatFormatting.BLUE : ChatFormatting.RED));
-        }
         n.groupBonus.forEach((g, b) -> {
             if (g.startsWith("choice:")) {   // one more pick at a choice ("+1 choice at Mage")
                 SkillNode o = t.nodes.get(g.substring(7));
@@ -954,72 +915,124 @@ public class SkillTreeScreen extends Screen {
                 tip.add(Component.translatable("waifingskilltree.node.choice_pool_bonus", b, groupName(g.substring(8))).withStyle(ChatFormatting.BLUE));
             } else tip.add(Component.translatable("waifingskilltree.node.group_bonus", b, groupName(g)).withStyle(ChatFormatting.BLUE));
         });
-        if (n.prevLevel > 1) tip.add(Component.translatable("waifingskilltree.node.prev_level", n.prevLevel).withStyle(ChatFormatting.YELLOW));
+        if (n.maxLevel() > 1) tip.add(Component.translatable("waifingskilltree.node.level", cur, n.maxLevel()).withStyle(ChatFormatting.YELLOW));
+
+        // ------------------------------------------------ requirements (Shift)
+        if (SkillNode.AND.equals(n.kind)) req(req, n.require <= 0 ? Component.translatable("waifingskilltree.node.and_all") : Component.translatable("waifingskilltree.node.and", n.require), null);
+        if ((conn.getOrDefault(n.id, 0) & 2) != 0) req(req, Component.translatable("waifingskilltree.node.wormhole"), null);
+        if (!n.advancements.isEmpty()) {
+            boolean met = cur > 0 || !ClientTrees.isGated(t.id, n.id);
+            for (String a : n.advancements) req(req, Component.translatable("waifingskilltree.node.req_advancement", advancementName(a)), met);
+        }
+        if (!n.requiresNodes.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (String id : n.requiresNodes) {
+                SkillNode r = t.nodes.get(id);
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(r != null ? r.title : id).append(ClientTrees.level(t.id, id) > 0 ? " ✔" : " ✘");
+            }
+            req(req, Component.translatable("waifingskilltree.node.requires_nodes", n.requiredNodeCount(), sb.toString()), SkillRules.requiredNodesMet(n, lv));
+        }
+        if (n.capLevel > 0 && !n.capNodes.isEmpty() && n.capLevel < n.maxLevel()) {   // "Levels 6-10: need 2 of: Warlord, Archmage..."
+            StringBuilder sb = new StringBuilder();
+            for (String id : n.capNodes) {
+                SkillNode r = t.nodes.get(id);
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(r != null ? r.title : id).append(ClientTrees.level(t.id, id) > 0 ? " ✔" : "");
+            }
+            req(req, Component.translatable("waifingskilltree.node.level_cap", n.capLevel + 1, n.maxLevel(), n.capNodeCount(), sb.toString()),
+                    SkillRules.levelAllowed(n, n.capLevel + 1, lv));
+        }
+        if (cur == 0) {
+            for (SkillNode.AttrReq r : n.attrReqs) {
+                var rl = ResourceLocation.tryParse(r.attribute());
+                var attr = rl == null ? null : ForgeRegistries.ATTRIBUTES.getValue(rl);
+                double have = attr != null && minecraft.player.getAttribute(attr) != null ? minecraft.player.getAttributeValue(attr) : 0;
+                Component name = attr == null ? Component.literal(r.attribute()) : Component.translatable(attr.getDescriptionId());
+                String fmt = (r.amount() == Math.rint(r.amount()) ? String.valueOf((long) r.amount()) : String.valueOf(r.amount()));
+                String haveFmt = (have == Math.rint(have) ? String.valueOf((long) have) : String.format("%.1f", have));
+                req(req, Component.translatable("waifingskilltree.node.attr_req", fmt, name, haveFmt),
+                        have + 1.0E-6 >= r.amount() || minecraft.player.getAbilities().instabuild);
+            }
+            for (SkillNode.ItemReq r : n.items) {
+                var rl = ResourceLocation.tryParse(r.item());
+                var item = rl == null ? null : ForgeRegistries.ITEMS.getValue(rl);
+                int have = 0;
+                if (item != null) for (ItemStack is : minecraft.player.getInventory().items) if (is.is(item)) have += is.getCount();
+                Component name = item == null ? Component.literal(r.item()) : item.getDescription();
+                req(req, Component.translatable("waifingskilltree.node.item", r.count(), name, have),
+                        have >= r.count() || minecraft.player.getAbilities().instabuild);
+            }
+        }
+        if (n.prevLevel > 1) req(req, Component.translatable("waifingskilltree.node.prev_level", n.prevLevel), null);
+        boolean freeNow = false;
+        if (!n.freeChoiceIf.isEmpty()) {   // "Free choice: you have Archmage" / "Free choice if you have: Archmage"
+            String f = SkillRules.freeBy(n, lv);
+            if (f != null) {
+                freeNow = true;
+                SkillNode r = t.nodes.get(f);
+                req(req, Component.translatable("waifingskilltree.node.free_choice", r != null ? r.title : f), true);
+            } else {
+                StringBuilder sb = new StringBuilder();
+                for (String id : n.freeChoiceIf) { SkillNode r = t.nodes.get(id); if (sb.length() > 0) sb.append(", "); sb.append(r != null ? r.title : id); }
+                req(req, Component.translatable("waifingskilltree.node.free_choice_if", sb.toString()), null);
+            }
+        }
+        if (!n.group.isEmpty() && t.groupLimits.containsKey(n.group)) {   // e.g. "Keystone Merchant: 1/2 chosen"
+            int used = SkillRules.groupUsed(t, n.group, lv), lim = SkillRules.groupLimit(t, n.group, lv);
+            req(req, Component.translatable("waifingskilltree.node.group_limit", groupName(n.group), used, lim), SkillRules.groupAllowed(t, n, lv));
+        }
         // choice: "You chose another path: X" / links that need a level of the previous node
-        String other = SkillRules.chosenSibling(t, n, id -> ClientTrees.level(t.id, id));
+        String other = SkillRules.chosenSibling(t, n, lv);
         if (other != null && other.isEmpty()) {   // locked choice: "Locked choice: opens with X, Y"
             StringBuilder sb = new StringBuilder();
             for (SkillTree.Link l : t.incomingLinks(n.id)) {
                 if (!SkillTree.CHOICE.equals(l.type)) continue;
                 for (SkillNode o : SkillRules.choiceOpeners(t, l.from)) {
                     if (sb.length() > 0) sb.append(", ");
-                    sb.append(o.title).append(ClientTrees.level(t.id, o.id) > 0 ? " \u2714" : "");
+                    sb.append(o.title).append(ClientTrees.level(t.id, o.id) > 0 ? " ✔" : "");
                 }
             }
-            tip.add((sb.length() > 0 ? Component.translatable("waifingskilltree.node.choice_locked_by", sb.toString())
-                    : Component.translatable("waifingskilltree.node.choice_locked")).withStyle(ChatFormatting.RED));
+            req(req, sb.length() > 0 ? Component.translatable("waifingskilltree.node.choice_locked_by", sb.toString())
+                    : Component.translatable("waifingskilltree.node.choice_locked"), false);
         } else if (other != null) {
             SkillNode o = t.nodes.get(other);
-            tip.add(Component.translatable("waifingskilltree.node.choice_closed", o != null ? o.title : other).withStyle(ChatFormatting.RED));
+            req(req, Component.translatable("waifingskilltree.node.choice_closed", o != null ? o.title : other), false);
         } else {
             for (SkillTree.Link l : t.incomingLinks(n.id)) {
-                if (SkillTree.CHOICE.equals(l.type) && ClientTrees.level(t.id, n.id) == 0 && !freeNow) {
-                    java.util.function.ToIntFunction<String> lv = id -> ClientTrees.level(t.id, id);
+                if (SkillTree.CHOICE.equals(l.type) && cur == 0 && !freeNow) {
                     String pool = SkillRules.poolNeeded(t, n, lv);
                     if (pool != null) {   // its own pick is spent: this one uses the shared extra pick
                         int left = SkillRules.choicePoolLimit(t, pool, lv) - SkillRules.choicePoolUsed(t, pool, lv);
-                        tip.add(Component.translatable("waifingskilltree.node.choice_pool", groupName(pool), left).withStyle(ChatFormatting.LIGHT_PURPLE));
-                    } else tip.add(Component.translatable("waifingskilltree.node.choice_open").withStyle(ChatFormatting.GOLD));
+                        req(req, Component.translatable("waifingskilltree.node.choice_pool", groupName(pool), left), null);
+                    } else req(req, Component.translatable("waifingskilltree.node.choice_open"), null);
                 }
                 if (l.minLevel > 0) {
                     SkillNode from = t.nodes.get(l.other(n.id));
-                    boolean met = ClientTrees.level(t.id, l.other(n.id)) >= l.minLevel;
-                    tip.add(Component.translatable("waifingskilltree.node.link_level", from != null ? from.title : l.other(n.id), l.minLevel)
-                            .withStyle(met ? ChatFormatting.GREEN : ChatFormatting.RED));
+                    req(req, Component.translatable("waifingskilltree.node.link_level", from != null ? from.title : l.other(n.id), l.minLevel),
+                            ClientTrees.level(t.id, l.other(n.id)) >= l.minLevel);
                 }
             }
         }
+        if (!req.isEmpty()) {
+            tip.add(Component.empty());
+            if (hasShiftDown()) {
+                tip.add(Component.translatable("waifingskilltree.node.requirements").withStyle(ChatFormatting.GOLD, ChatFormatting.UNDERLINE));
+                tip.addAll(req);
+            } else {
+                tip.add(Component.translatable("waifingskilltree.tip.shift").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
+            }
+        }
+
+        // ------------------------------------------------ state
         tip.add(Component.empty());
         State st = state(t, n);
-        int cur = ClientTrees.level(t.id, n.id);
-        boolean maxed = cur >= n.maxLevel();
         if (cur > 0) {
             tip.add(Component.translatable(maxed ? "waifingskilltree.node.maxed" : "waifingskilltree.node.taken").withStyle(ChatFormatting.GREEN));
         }
         if (!maxed) {
-            int cost = SkillRules.cost(t, n, id -> ClientTrees.level(t.id, id), cur + 1);
+            int cost = SkillRules.cost(t, n, lv, cur + 1);
             boolean enough = ClientTrees.points >= cost || minecraft.player.getAbilities().instabuild;
-            if (cur == 0) {
-                for (SkillNode.AttrReq r : n.attrReqs) {
-                    var rl = ResourceLocation.tryParse(r.attribute());
-                    var attr = rl == null ? null : ForgeRegistries.ATTRIBUTES.getValue(rl);
-                    double have = attr != null && minecraft.player.getAttribute(attr) != null ? minecraft.player.getAttributeValue(attr) : 0;
-                    Component name = attr == null ? Component.literal(r.attribute()) : Component.translatable(attr.getDescriptionId());
-                    String fmt = (r.amount() == Math.rint(r.amount()) ? String.valueOf((long) r.amount()) : String.valueOf(r.amount()));
-                    String haveFmt = (have == Math.rint(have) ? String.valueOf((long) have) : String.format("%.1f", have));
-                    tip.add(Component.translatable("waifingskilltree.node.attr_req", fmt, name, haveFmt)
-                            .withStyle(have + 1.0E-6 >= r.amount() || minecraft.player.getAbilities().instabuild ? ChatFormatting.GREEN : ChatFormatting.RED));
-                }
-                for (SkillNode.ItemReq r : n.items) {
-                    var rl = ResourceLocation.tryParse(r.item());
-                    var item = rl == null ? null : ForgeRegistries.ITEMS.getValue(rl);
-                    int have = 0;
-                    if (item != null) for (ItemStack is : minecraft.player.getInventory().items) if (is.is(item)) have += is.getCount();
-                    Component name = item == null ? Component.literal(r.item()) : item.getDescription();
-                    tip.add(Component.translatable("waifingskilltree.node.item", r.count(), name, have)
-                            .withStyle(have >= r.count() || minecraft.player.getAbilities().instabuild ? ChatFormatting.GREEN : ChatFormatting.RED));
-                }
-            }
             tip.add(Component.translatable("waifingskilltree.node.cost", cost).withStyle(enough ? ChatFormatting.YELLOW : ChatFormatting.RED));
             if (cur == 0) {
                 if (!ClientTrees.treeAllowed(t)) {
@@ -1036,6 +1049,28 @@ public class SkillTreeScreen extends Screen {
         }
         if (cur > 0 && canRefund()) tip.add(Component.translatable("waifingskilltree.tip.refund").withStyle(ChatFormatting.DARK_GRAY));
         return tip;
+    }
+
+    /** A requirement line: italic, with a check (met), a cross (not met) or a dot (information). */
+    private static void req(List<Component> out, Component text, @Nullable Boolean met) {
+        MutableComponent mark = met == null ? Component.literal(" • ").withStyle(ChatFormatting.DARK_AQUA)
+                : met ? Component.literal(" ✔ ").withStyle(ChatFormatting.GREEN)
+                : Component.literal(" ✘ ").withStyle(ChatFormatting.RED);
+        ChatFormatting col = met == null ? ChatFormatting.AQUA : met ? ChatFormatting.GRAY : ChatFormatting.YELLOW;
+        out.add(mark.append(text.copy().withStyle(col, ChatFormatting.ITALIC)));
+    }
+
+    /** Display name of an advancement: from the client list when known, else the vanilla title key, else the id. */
+    private Component advancementName(String id) {
+        ResourceLocation rl = ResourceLocation.tryParse(id);
+        if (rl == null) return Component.literal(id);
+        var listener = minecraft.getConnection();
+        if (listener != null) {
+            net.minecraft.advancements.Advancement adv = listener.getAdvancements().getAdvancements().get(rl);
+            if (adv != null && adv.getDisplay() != null) return adv.getDisplay().getTitle().copy();
+        }
+        if ("minecraft".equals(rl.getNamespace())) return Component.translatable("advancements." + rl.getPath().replace('/', '.') + ".title");
+        return Component.literal(id);
     }
 
     private Component attrLine(AttrMod a, boolean perLevel) {

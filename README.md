@@ -1,3 +1,5 @@
+<img src="src/main/resources/logo.png" alt="Waifing Skilltree logo" width="128">
+
 # Waifing Skilltree
 
 A data-driven skill tree framework for Minecraft Forge 1.20.1, inspired by Passive Skill Trees and Path of Exile.
@@ -54,13 +56,13 @@ Conditions that depend on another mod are simply inactive when that mod is not i
 
 Trees are created with a free web-based editor that runs in the browser, with no installation required. It lets you place and connect nodes visually, edit attributes and conditions, preview the tree as a player would see it, check for errors and export the datapack directly.
 
-Editor: https://dankesto.github.io/Waifing-Skilltree/
+Editor: [link to the editor]
 
 ## Datapacks
 
 This mod does not include a skill tree. Install a datapack that provides one, or create your own with the editor.
 
-Official tree: https://www.curseforge.com/minecraft/data-packs/waifing-skill-tree-datapack
+Official tree: [link to the Waifing Skilltree datapack]
 
 ## Compatibility
 
@@ -79,6 +81,8 @@ data/<namespace>/waifingskilltree/trees/<name>.json
 data/<namespace>/waifingskilltree/click_recipes/<name>.json
 data/<namespace>/recipes/<name>.json
 ```
+
+Every field, condition and config option is described in [docs/datapack-format.md](docs/datapack-format.md).
 
 ## Building
 

@@ -15,7 +15,7 @@
   "waifingskilltree.node.wormhole": "Portal: leads to a far node",
   "waifingskilltree.node.start": "Starting node",
   "waifingskilltree.msg.need_advancement": "You haven't earned the required advancement yet.",
-  "waifingskilltree.node.advancement": "Requires an advancement",
+  "waifingskilltree.node.advancement": "Requires an advancement (hold Shift)",
   "waifingskilltree.screen.empty": "No trees loaded (install a datapack).",
   "waifingskilltree.tip.refund": "Right click: refund (one level)",
   "waifingskilltree.msg.need_items": "You don't have the required items.",
@@ -124,5 +124,8 @@
   "waifingskilltree.node.level_cap": "Levels %s-%s: need %s of: %s",
   "waifingskilltree.attrs.title": "Attributes",
   "waifingskilltree.attrs.none": "No attributes gained yet",
-  "waifingskilltree.attrs.hint": "Click: switch off/on  * = conditional"
+  "waifingskilltree.attrs.hint": "Click: switch off/on  * = conditional",
+  "waifingskilltree.tip.shift": "Hold Shift: requirements",
+  "waifingskilltree.node.requirements": "Requirements",
+  "waifingskilltree.node.req_advancement": "Advancement: %s"
 }

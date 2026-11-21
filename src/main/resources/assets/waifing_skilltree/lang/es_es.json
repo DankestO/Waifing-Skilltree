@@ -15,7 +15,7 @@
   "waifingskilltree.node.wormhole": "Portal: conecta con un nodo lejano",
   "waifingskilltree.node.start": "Nodo de inicio",
   "waifingskilltree.msg.need_advancement": "Aún no has conseguido el logro necesario.",
-  "waifingskilltree.node.advancement": "Requiere un logro",
+  "waifingskilltree.node.advancement": "Requiere un logro (mantén Shift)",
   "waifingskilltree.screen.empty": "No hay árboles cargados (instala un datapack).",
   "waifingskilltree.tip.refund": "Clic derecho: devolver (un nivel)",
   "waifingskilltree.msg.need_items": "No tienes los objetos necesarios.",
@@ -124,5 +124,8 @@
   "waifingskilltree.node.level_cap": "Niveles %s-%s: necesitas %s de: %s",
   "waifingskilltree.attrs.title": "Atributos",
   "waifingskilltree.attrs.none": "Aún no has ganado atributos",
-  "waifingskilltree.attrs.hint": "Clic: desactivar/activar  * = condicional"
+  "waifingskilltree.attrs.hint": "Clic: desactivar/activar  * = condicional",
+  "waifingskilltree.tip.shift": "Mantén Shift: requisitos",
+  "waifingskilltree.node.requirements": "Requisitos",
+  "waifingskilltree.node.req_advancement": "Logro: %s"
 }
