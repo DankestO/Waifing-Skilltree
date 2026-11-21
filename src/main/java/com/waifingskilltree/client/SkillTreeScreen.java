@@ -950,7 +950,7 @@ public class SkillTreeScreen extends Screen {
                 double have = attr != null && minecraft.player.getAttribute(attr) != null ? minecraft.player.getAttributeValue(attr) : 0;
                 Component name = attr == null ? Component.literal(r.attribute()) : Component.translatable(attr.getDescriptionId());
                 String fmt = (r.amount() == Math.rint(r.amount()) ? String.valueOf((long) r.amount()) : String.valueOf(r.amount()));
-                String haveFmt = (have == Math.rint(have) ? String.valueOf((long) have) : String.format("%.1f", have));
+                String haveFmt = (have == Math.rint(have) ? String.valueOf((long) have) : trim(have));
                 req(req, Component.translatable("waifingskilltree.node.attr_req", fmt, name, haveFmt),
                         have + 1.0E-6 >= r.amount() || minecraft.player.getAbilities().instabuild);
             }
@@ -1077,7 +1077,7 @@ public class SkillTreeScreen extends Screen {
         Attribute attr = a.resolve();
         Component name = attr == null ? Component.literal(a.attribute()) : Component.translatable(attr.getDescriptionId());
         double v = a.amount();
-        String num = a.operation() == 0 ? (v >= 0 ? "+" : "") + trim(v) : (v >= 0 ? "+" : "") + trim(v * 100) + "%";
+        String num = a.operation() == 0 ? (v >= 0 ? "+" : "") + trim(v) : (v >= 0 ? "+" : "") + pct(v) + "%";
         MutableComponent line = Component.literal(num + " ").append(name).append(perLevel ? Component.translatable("waifingskilltree.node.per_level") : Component.empty());
         if (a.condition() == null) return line.withStyle(v >= 0 ? ChatFormatting.GREEN : ChatFormatting.RED);
         return line.withStyle(condActive(a) ? (v >= 0 ? ChatFormatting.GREEN : ChatFormatting.RED) : ChatFormatting.DARK_GRAY);
@@ -1110,8 +1110,16 @@ public class SkillTreeScreen extends Screen {
         return Component.literal(pretty(g));
     }
 
+    /** The number as written in the datapack: 2 -> "2", 0.5 -> "0.5", 0.125 -> "0.125". No decimal limit;
+     *  only floating point noise is removed (0.1 + 0.2 shows 0.3, not 0.30000000000000004). */
     private static String trim(double d) {
-        return d == Math.floor(d) ? String.valueOf((long) d) : String.format(Locale.ROOT, "%.2f", d);
+        return new java.math.BigDecimal(Double.toString(d)).setScale(9, java.math.RoundingMode.HALF_UP)
+                .stripTrailingZeros().toPlainString();
+    }
+
+    /** A fraction shown as a percent, without the noise of multiplying by 100 (0.07 -> "7", not "7.000000000000001"). */
+    private static String pct(double d) {
+        return trim(new java.math.BigDecimal(Double.toString(d)).movePointRight(2).doubleValue());
     }
 
     // ================================================================ attribute summary (top-right dropdown)
@@ -1202,7 +1210,7 @@ public class SkillTreeScreen extends Screen {
             if (!off) g.fill(px0 + 6, ry + 2, px0 + 10, ry + 6, 0xFF7FE3A1);
             StringBuilder v = new StringBuilder();
             if (Math.abs(a.flat) > 1.0E-9) v.append(a.flat >= 0 ? "+" : "").append(trim(a.flat));
-            if (Math.abs(a.pct) > 1.0E-9) { if (v.length() > 0) v.append(' '); v.append(a.pct >= 0 ? "+" : "").append(trim(a.pct * 100)).append('%'); }
+            if (Math.abs(a.pct) > 1.0E-9) { if (v.length() > 0) v.append(' '); v.append(a.pct >= 0 ? "+" : "").append(pct(a.pct)).append('%'); }
             if (a.conditional) v.append('*');
             String val = v.toString();
             int vw = font.width(val);
